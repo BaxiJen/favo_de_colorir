@@ -40,41 +40,54 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Form(
               key: _formKey,
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Logo placeholder
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: FavoColors.honeyLight,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.palette,
-                      size: 60,
-                      color: FavoColors.honey,
-                    ),
+                  // Logo
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: FavoColors.primary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.local_florist,
+                          color: FavoColors.onPrimary,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Favo de Colorir',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 48),
+
+                  // Title
                   Text(
-                    'Favo de Colorir',
+                    'Bem-vindo de volta',
                     style: Theme.of(context).textTheme.headlineLarge,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Ateliê de Cerâmica',
+                    'Entre com seus dados para continuar sua jornada criativa.',
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 40),
 
-                  // Email field
+                  // Email
+                  Text('E-mail',
+                      style: Theme.of(context).textTheme.labelMedium),
+                  const SizedBox(height: 8),
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
-                      labelText: 'E-mail',
-                      prefixIcon: Icon(Icons.email_outlined),
+                      hintText: 'nome@exemplo.com',
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -86,20 +99,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
-                  // Password field
+                  // Password
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Senha',
+                          style: Theme.of(context).textTheme.labelMedium),
+                      GestureDetector(
+                        onTap: _handleForgotPassword,
+                        child: Text(
+                          'Esqueci minha senha',
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: FavoColors.primary,
+                                  ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     decoration: InputDecoration(
-                      labelText: 'Senha',
-                      prefixIcon: const Icon(Icons.lock_outlined),
+                      hintText: '••••••••',
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
+                          color: FavoColors.onSurfaceVariant,
                         ),
                         onPressed: () {
                           setState(() {
@@ -118,17 +149,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 8),
-
-                  // Forgot password
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: _handleForgotPassword,
-                      child: const Text('Esqueci minha senha'),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
 
                   // Login button
                   SizedBox(
@@ -144,19 +165,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Entrar'),
+                          : const Text('Entrar no Atelier'),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 32),
 
                   // Signup link
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Não tem conta? '),
-                      TextButton(
-                        onPressed: () => context.go('/signup'),
-                        child: const Text('Cadastre-se'),
+                      Text('Novo por aqui? ',
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      GestureDetector(
+                        onTap: () => context.go('/signup'),
+                        child: Text(
+                          'Criar uma conta',
+                          style:
+                              Theme.of(context).textTheme.labelLarge?.copyWith(
+                                    color: FavoColors.primary,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: FavoColors.primary,
+                                  ),
+                        ),
                       ),
                     ],
                   ),
@@ -193,7 +223,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         await authService.signOut();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Sua conta foi bloqueada. Entre em contato com o ateliê.')),
+            const SnackBar(
+                content: Text(
+                    'Sua conta foi bloqueada. Entre em contato com o ateliê.')),
           );
         }
         return;

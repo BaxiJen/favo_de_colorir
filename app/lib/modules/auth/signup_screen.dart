@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/theme.dart';
 import '../../services/auth_service.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -34,39 +35,63 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cadastro'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.close),
           onPressed: () => context.go('/login'),
+        ),
+        title: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: FavoColors.primary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.local_florist,
+                  color: FavoColors.onPrimary, size: 16),
+            ),
+            const SizedBox(width: 8),
+            Text('Favo de Colorir',
+                style: Theme.of(context).textTheme.titleSmall),
+          ],
         ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(32),
           child: Form(
             key: _formKey,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Bem-vinda ao Favo!',
-                  style: Theme.of(context).textTheme.headlineMedium,
+                  'Junte-se ao',
+                  style: Theme.of(context).textTheme.headlineLarge,
                 ),
-                const SizedBox(height: 8),
                 Text(
-                  'Preencha seus dados para criar sua conta.',
+                  'Ateliê.',
+                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                        fontStyle: FontStyle.italic,
+                      ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Inicie sua jornada criativa na cerâmica. Preencha seus dados para solicitar acesso.',
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 32),
 
-                // Name
+                // Full Name
+                Text('FULL NAME',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          letterSpacing: 1.5,
+                        )),
+                const SizedBox(height: 8),
                 TextFormField(
                   controller: _nameController,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Nome completo',
-                    prefixIcon: Icon(Icons.person_outlined),
-                  ),
+                  decoration: const InputDecoration(hintText: 'Seu nome completo'),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Informe seu nome';
@@ -74,102 +99,152 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 // Email
+                Text('EMAIL',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          letterSpacing: 1.5,
+                        )),
+                const SizedBox(height: 8),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'E-mail',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
+                  decoration: const InputDecoration(hintText: 'email@exemplo.com'),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Informe seu e-mail';
-                    }
-                    if (!value.contains('@')) {
-                      return 'E-mail inválido';
-                    }
+                    if (value == null || value.isEmpty) return 'Informe seu e-mail';
+                    if (!value.contains('@')) return 'E-mail inválido';
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 // Phone
+                Text('PHONE',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          letterSpacing: 1.5,
+                        )),
+                const SizedBox(height: 8),
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Telefone (WhatsApp)',
-                    prefixIcon: Icon(Icons.phone_outlined),
-                    hintText: '(21) 99999-9999',
-                  ),
+                  decoration:
+                      const InputDecoration(hintText: '(21) 99999-9999'),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 // Birth date
-                InkWell(
+                Text('BIRTH DATE',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          letterSpacing: 1.5,
+                        )),
+                const SizedBox(height: 8),
+                GestureDetector(
                   onTap: _pickBirthDate,
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Data de nascimento',
-                      prefixIcon: Icon(Icons.cake_outlined),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 16),
+                    decoration: BoxDecoration(
+                      color: FavoColors.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
                       _birthDate != null
                           ? '${_birthDate!.day.toString().padLeft(2, '0')}/${_birthDate!.month.toString().padLeft(2, '0')}/${_birthDate!.year}'
-                          : '',
-                      style: Theme.of(context).textTheme.bodyLarge,
+                          : 'mm/dd/yyyy',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: _birthDate != null
+                                ? FavoColors.onSurface
+                                : FavoColors.onSurfaceVariant.withAlpha(128),
+                          ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 // Password
+                Text('SENHA',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          letterSpacing: 1.5,
+                        )),
+                const SizedBox(height: 8),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Senha',
-                    prefixIcon: Icon(Icons.lock_outlined),
-                  ),
+                  decoration: const InputDecoration(hintText: '••••••••'),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Crie uma senha';
-                    }
+                    if (value == null || value.isEmpty) return 'Crie uma senha';
                     if (value.length < 6) {
                       return 'Senha deve ter pelo menos 6 caracteres';
                     }
                     return null;
                   },
                 ),
+                const SizedBox(height: 12),
+
+                // Info box
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: FavoColors.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline,
+                          size: 18, color: FavoColors.onSurfaceVariant),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Sua solicitação será revisada por nossa curadoria. Você receberá um e-mail com o status da administração.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 32),
 
                 // Submit
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _handleSignup,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Criar conta'),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _handleSignup,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text('Finalizar Cadastro'),
+                  ),
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text('Já tem conta? '),
-                    TextButton(
-                      onPressed: () => context.go('/login'),
-                      child: const Text('Entrar'),
-                    ),
-                  ],
+
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Já possui uma conta? ',
+                          style: Theme.of(context).textTheme.bodySmall),
+                      GestureDetector(
+                        onTap: () => context.go('/login'),
+                        child: Text(
+                          'Entrar',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelMedium
+                              ?.copyWith(
+                                color: FavoColors.primary,
+                                decoration: TextDecoration.underline,
+                                decorationColor: FavoColors.primary,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
