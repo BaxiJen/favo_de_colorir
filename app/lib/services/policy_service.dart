@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/supabase_client.dart';
-import 'auth_service.dart';
 
 final policyServiceProvider = Provider<PolicyService>((ref) {
   return PolicyService();
@@ -11,17 +10,10 @@ final activePoliciesProvider = FutureProvider<List<Policy>>((ref) {
   return ref.read(policyServiceProvider).getActivePolicies();
 });
 
-final hasAcceptedAllPoliciesProvider = FutureProvider<bool>((ref) {
-  final authState = ref.watch(authStateProvider);
-  return authState.when(
-    data: (state) {
-      final userId = state.session?.user.id;
-      if (userId == null) return false;
-      return ref.read(policyServiceProvider).hasAcceptedAll(userId);
-    },
-    loading: () => false,
-    error: (_, _) => false,
-  );
+final hasAcceptedAllPoliciesProvider = FutureProvider<bool>((ref) async {
+  final userId = SupabaseConfig.auth.currentUser?.id;
+  if (userId == null) return false;
+  return ref.read(policyServiceProvider).hasAcceptedAll(userId);
 });
 
 class Policy {

@@ -4,23 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/supabase_client.dart';
 import '../models/feed_entry.dart';
-import 'auth_service.dart';
 
 final feedServiceProvider = Provider<FeedService>((ref) {
   return FeedService();
 });
 
-final myFeedProvider = FutureProvider<List<FeedEntry>>((ref) {
-  final authState = ref.watch(authStateProvider);
-  return authState.when(
-    data: (state) {
-      final userId = state.session?.user.id;
-      if (userId == null) return [];
-      return ref.read(feedServiceProvider).getMyFeed(userId);
-    },
-    loading: () => [],
-    error: (_, _) => [],
-  );
+final myFeedProvider = FutureProvider<List<FeedEntry>>((ref) async {
+  final userId = SupabaseConfig.auth.currentUser?.id;
+  if (userId == null) return [];
+  return ref.read(feedServiceProvider).getMyFeed(userId);
 });
 
 class FeedService {

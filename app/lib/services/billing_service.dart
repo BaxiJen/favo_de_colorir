@@ -2,24 +2,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/supabase_client.dart';
 import '../models/cobranca.dart';
-import 'auth_service.dart';
 
 final billingServiceProvider = Provider<BillingService>((ref) {
   return BillingService();
 });
 
 /// Cobranças do aluno logado
-final myBillsProvider = FutureProvider<List<Cobranca>>((ref) {
-  final authState = ref.watch(authStateProvider);
-  return authState.when(
-    data: (state) {
-      final userId = state.session?.user.id;
-      if (userId == null) return [];
-      return ref.read(billingServiceProvider).getStudentBills(userId);
-    },
-    loading: () => [],
-    error: (_, _) => [],
-  );
+final myBillsProvider = FutureProvider<List<Cobranca>>((ref) async {
+  final userId = SupabaseConfig.auth.currentUser?.id;
+  if (userId == null) return [];
+  return ref.read(billingServiceProvider).getStudentBills(userId);
 });
 
 /// Todas as cobranças de um mês (admin)

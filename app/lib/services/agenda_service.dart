@@ -4,24 +4,16 @@ import '../core/supabase_client.dart';
 import '../models/aula.dart';
 import '../models/presenca.dart';
 import '../models/turma.dart';
-import 'auth_service.dart';
 
 final agendaServiceProvider = Provider<AgendaService>((ref) {
   return AgendaService();
 });
 
 /// Aulas da semana para o aluno logado
-final myWeekAulasProvider = FutureProvider<List<AulaWithTurma>>((ref) {
-  final authState = ref.watch(authStateProvider);
-  return authState.when(
-    data: (state) {
-      final userId = state.session?.user.id;
-      if (userId == null) return [];
-      return ref.read(agendaServiceProvider).getMyWeekAulas(userId);
-    },
-    loading: () => [],
-    error: (_, _) => [],
-  );
+final myWeekAulasProvider = FutureProvider<List<AulaWithTurma>>((ref) async {
+  final userId = SupabaseConfig.auth.currentUser?.id;
+  if (userId == null) return [];
+  return ref.read(agendaServiceProvider).getMyWeekAulas(userId);
 });
 
 /// Próxima aula do aluno

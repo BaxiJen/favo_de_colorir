@@ -5,22 +5,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/supabase_client.dart';
 import '../models/profile.dart';
-import 'auth_service.dart';
 
 final profileServiceProvider = Provider<ProfileService>((ref) {
   return ProfileService();
 });
 
 final currentProfileProvider = FutureProvider<Profile?>((ref) async {
-  // Watch auth state to refresh when login/logout
-  ref.watch(authStateProvider);
   final userId = SupabaseConfig.auth.currentUser?.id;
   if (userId == null) return null;
   return ref.read(profileServiceProvider).getProfile(userId);
 });
 
 final pendingProfilesProvider = FutureProvider<List<Profile>>((ref) {
-  ref.watch(authStateProvider);
   return ref.read(profileServiceProvider).getPendingProfiles();
 });
 

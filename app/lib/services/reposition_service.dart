@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/supabase_client.dart';
 import '../models/aula.dart';
 import '../models/turma.dart';
-import 'auth_service.dart';
 
 final repositionServiceProvider = Provider<RepositionService>((ref) {
   return RepositionService();
@@ -11,17 +10,10 @@ final repositionServiceProvider = Provider<RepositionService>((ref) {
 
 /// Reposições pendentes do aluno
 final myRepositionsProvider =
-    FutureProvider<List<RepositionRequest>>((ref) {
-  final authState = ref.watch(authStateProvider);
-  return authState.when(
-    data: (state) {
-      final userId = state.session?.user.id;
-      if (userId == null) return [];
-      return ref.read(repositionServiceProvider).getMyRepositions(userId);
-    },
-    loading: () => [],
-    error: (_, _) => [],
-  );
+    FutureProvider<List<RepositionRequest>>((ref) async {
+  final userId = SupabaseConfig.auth.currentUser?.id;
+  if (userId == null) return [];
+  return ref.read(repositionServiceProvider).getMyRepositions(userId);
 });
 
 /// Turmas com vaga disponível para reposição
