@@ -14,6 +14,7 @@ import '../modules/agenda/aula_detail_screen.dart';
 import '../modules/agenda/teacher_dashboard_screen.dart';
 import '../modules/agenda/admin_turmas_screen.dart';
 import '../modules/agenda/reposition_screen.dart';
+import '../modules/materiais/register_materials_screen.dart';
 import '../services/auth_service.dart';
 import 'supabase_client.dart';
 
@@ -87,6 +88,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/reposition',
         builder: (context, state) => const RepositionScreen(),
+      ),
+      GoRoute(
+        path: '/materiais/:aulaId/:studentId/:studentName',
+        builder: (context, state) => RegisterMaterialsScreen(
+          aulaId: state.pathParameters['aulaId']!,
+          studentId: state.pathParameters['studentId']!,
+          studentName: Uri.decodeComponent(state.pathParameters['studentName']!),
+        ),
       ),
       GoRoute(
         path: '/admin/turmas',
