@@ -148,9 +148,7 @@ class HomeScreen extends ConsumerWidget {
                     icon: Icons.swap_horiz,
                     label: 'Repor Aula',
                     color: FavoColors.honeyDark,
-                    onTap: () {
-                      // TODO: navigate to makeup (Sprint 3)
-                    },
+                    onTap: () => context.go('/reposition'),
                   ),
                 ),
               ],

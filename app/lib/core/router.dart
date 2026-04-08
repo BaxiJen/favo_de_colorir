@@ -13,6 +13,7 @@ import '../modules/agenda/my_agenda_screen.dart';
 import '../modules/agenda/aula_detail_screen.dart';
 import '../modules/agenda/teacher_dashboard_screen.dart';
 import '../modules/agenda/admin_turmas_screen.dart';
+import '../modules/agenda/reposition_screen.dart';
 import '../services/auth_service.dart';
 import 'supabase_client.dart';
 
@@ -82,6 +83,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/admin/approvals',
         builder: (context, state) => const AdminApprovalScreen(),
+      ),
+      GoRoute(
+        path: '/reposition',
+        builder: (context, state) => const RepositionScreen(),
       ),
       GoRoute(
         path: '/admin/turmas',
