@@ -21,10 +21,6 @@ class HomeScreen extends ConsumerWidget {
         title: const Text('Favo de Colorir'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.person_outlined),
-            onPressed: () => context.go('/profile'),
-          ),
-          IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
               await ref.read(authServiceProvider).signOut();
@@ -33,10 +29,13 @@ class HomeScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(currentProfileProvider);
+          ref.invalidate(nextAulaProvider);
+        },
+        child: ListView(
+          padding: const EdgeInsets.all(16),
           children: [
             // Welcome + próxima aula
             Card(
@@ -59,92 +58,103 @@ class HomeScreen extends ConsumerWidget {
                         style: Theme.of(context).textTheme.headlineMedium,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     nextAulaAsync.when(
                       data: (next) {
                         if (next == null) {
-                          return Text(
-                            'Sem aulas agendadas esta semana.',
-                            style: Theme.of(context).textTheme.bodyLarge,
+                          return Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: FavoColors.honeyLight.withAlpha(80),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.event_available,
+                                    color: FavoColors.honey),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Sem aulas agendadas esta semana.',
+                                    style:
+                                        Theme.of(context).textTheme.bodyLarge,
+                                  ),
+                                ),
+                              ],
+                            ),
                           );
                         }
                         final dateStr = DateFormat('EEEE, d/MM', 'pt_BR')
                             .format(next.aula.scheduledDate);
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Próxima aula:',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${next.turma.name} · $dateStr · ${next.aula.startTime.substring(0, 5)}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyLarge
-                                  ?.copyWith(fontWeight: FontWeight.w600),
-                            ),
-                          ],
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: FavoColors.honeyLight.withAlpha(80),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.schedule,
+                                  color: FavoColors.honeyDark),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Próxima aula',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall),
+                                    Text(
+                                      '${next.turma.name} · $dateStr',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                              fontWeight: FontWeight.w600),
+                                    ),
+                                    Text(
+                                      '${next.aula.startTime.substring(0, 5)} – ${next.aula.endTime.substring(0, 5)}',
+                                      style:
+                                          Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         );
                       },
                       loading: () => const LinearProgressIndicator(),
-                      error: (_, _) => Text(
-                        'Sua próxima aula será exibida aqui.',
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
+                      error: (_, _) => const SizedBox.shrink(),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // Quick actions
-            Text(
-              'Atalhos',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            // Atalhos rápidos
+            Text('Ações rápidas',
+                style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(
-                  child: _QuickActionCard(
-                    icon: Icons.calendar_today,
-                    label: 'Minha Agenda',
-                    color: FavoColors.honey,
-                    onTap: () => context.go('/agenda'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _QuickActionCard(
-                    icon: Icons.photo_library_outlined,
-                    label: 'Meu Feed',
-                    color: FavoColors.terracotta,
-                    onTap: () => context.go('/feed'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _QuickActionCard(
-                    icon: Icons.payment_outlined,
-                    label: 'Pagamentos',
-                    color: FavoColors.warmGray,
-                    onTap: () => context.go('/payments'),
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: _QuickActionCard(
                     icon: Icons.swap_horiz,
                     label: 'Repor Aula',
                     color: FavoColors.honeyDark,
-                    onTap: () => context.go('/reposition'),
+                    onTap: () => context.go('/agenda/reposition'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickActionCard(
+                    icon: Icons.note_add_outlined,
+                    label: 'Nova Nota',
+                    color: FavoColors.terracotta,
+                    onTap: () => context.go('/feed'),
                   ),
                 ),
               ],
@@ -166,19 +176,19 @@ class HomeScreen extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: _QuickActionCard(
-                            icon: Icons.people,
-                            label: 'Aprovar\nCadastros',
+                            icon: Icons.manage_accounts,
+                            label: 'Usuários',
                             color: FavoColors.terracotta,
-                            onTap: () => context.go('/admin/approvals'),
+                            onTap: () => context.go('/admin/users'),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: _QuickActionCard(
-                            icon: Icons.class_,
-                            label: 'Gestão\nTurmas',
+                            icon: Icons.people,
+                            label: 'Aprovar\nCadastros',
                             color: FavoColors.honey,
-                            onTap: () => context.go('/admin/turmas'),
+                            onTap: () => context.go('/admin/approvals'),
                           ),
                         ),
                       ],
@@ -188,19 +198,19 @@ class HomeScreen extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: _QuickActionCard(
-                            icon: Icons.attach_money,
-                            label: 'Painel\nFinanceiro',
-                            color: FavoColors.success,
-                            onTap: () => context.go('/admin/billing'),
+                            icon: Icons.class_,
+                            label: 'Turmas',
+                            color: FavoColors.honeyDark,
+                            onTap: () => context.go('/admin/turmas'),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: _QuickActionCard(
-                            icon: Icons.manage_accounts,
-                            label: 'Gestão\nUsuários',
-                            color: FavoColors.terracotta,
-                            onTap: () => context.go('/admin/users'),
+                            icon: Icons.attach_money,
+                            label: 'Financeiro',
+                            color: FavoColors.success,
+                            onTap: () => context.go('/admin/billing'),
                           ),
                         ),
                       ],

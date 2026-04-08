@@ -17,10 +17,6 @@ class MyAgendaScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Minha Agenda'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/'),
-        ),
       ),
       body: aulasAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -96,7 +92,7 @@ class _AulaCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
-        onTap: () => context.go('/aula/${item.aula.id}'),
+        onTap: () => context.go('/agenda/aula/${item.aula.id}'),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),

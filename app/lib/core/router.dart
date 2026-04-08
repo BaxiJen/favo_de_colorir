@@ -19,13 +19,17 @@ import '../modules/cobranca/admin_billing_screen.dart';
 import '../modules/cobranca/my_payments_screen.dart';
 import '../modules/feed/feed_screen.dart';
 import '../modules/materiais/register_materials_screen.dart';
+import '../modules/shell/app_shell.dart';
 import '../services/auth_service.dart';
 import 'supabase_client.dart';
+
+final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final routerProvider = Provider<GoRouter>((ref) {
   ref.watch(authStateProvider);
 
   return GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: _AuthNotifier(ref),
     redirect: (context, state) {
@@ -47,6 +51,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      // Auth routes (sem bottom nav)
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
@@ -63,63 +68,107 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/pending',
         builder: (context, state) => const PendingApprovalScreen(),
       ),
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const HomeScreen(),
+
+      // App com bottom nav
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            AppShell(navigationShell: navigationShell),
+        branches: [
+          // Tab 0: Início
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (context, state) => const HomeScreen(),
+              ),
+            ],
+          ),
+          // Tab 1: Agenda
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/agenda',
+                builder: (context, state) => const MyAgendaScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'aula/:id',
+                    builder: (context, state) => AulaDetailScreen(
+                      aulaId: state.pathParameters['id']!,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'reposition',
+                    builder: (context, state) => const RepositionScreen(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // Tab 2: Feed
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/feed',
+                builder: (context, state) => const FeedScreen(),
+              ),
+            ],
+          ),
+          // Tab 3: Pagamentos
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/payments',
+                builder: (context, state) => const MyPaymentsScreen(),
+              ),
+            ],
+          ),
+          // Tab 4: Perfil
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/profile',
+                builder: (context, state) => const ProfileScreen(),
+              ),
+            ],
+          ),
+        ],
       ),
-      GoRoute(
-        path: '/agenda',
-        builder: (context, state) => const MyAgendaScreen(),
-      ),
-      GoRoute(
-        path: '/aula/:id',
-        builder: (context, state) => AulaDetailScreen(
-          aulaId: state.pathParameters['id']!,
-        ),
-      ),
-      GoRoute(
-        path: '/profile',
-        builder: (context, state) => const ProfileScreen(),
-      ),
-      GoRoute(
-        path: '/teacher/dashboard',
-        builder: (context, state) => const TeacherDashboardScreen(),
-      ),
+
+      // Rotas admin (full screen, sem bottom nav)
       GoRoute(
         path: '/admin/users',
+        parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const AdminUsersScreen(),
       ),
       GoRoute(
         path: '/admin/approvals',
+        parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const AdminApprovalScreen(),
       ),
       GoRoute(
-        path: '/feed',
-        builder: (context, state) => const FeedScreen(),
-      ),
-      GoRoute(
-        path: '/reposition',
-        builder: (context, state) => const RepositionScreen(),
-      ),
-      GoRoute(
-        path: '/materiais/:aulaId/:studentId/:studentName',
-        builder: (context, state) => RegisterMaterialsScreen(
-          aulaId: state.pathParameters['aulaId']!,
-          studentId: state.pathParameters['studentId']!,
-          studentName: Uri.decodeComponent(state.pathParameters['studentName']!),
-        ),
-      ),
-      GoRoute(
-        path: '/payments',
-        builder: (context, state) => const MyPaymentsScreen(),
+        path: '/admin/turmas',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AdminTurmasScreen(),
       ),
       GoRoute(
         path: '/admin/billing',
+        parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const AdminBillingScreen(),
       ),
       GoRoute(
-        path: '/admin/turmas',
-        builder: (context, state) => const AdminTurmasScreen(),
+        path: '/teacher/dashboard',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const TeacherDashboardScreen(),
+      ),
+      GoRoute(
+        path: '/materiais/:aulaId/:studentId/:studentName',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => RegisterMaterialsScreen(
+          aulaId: state.pathParameters['aulaId']!,
+          studentId: state.pathParameters['studentId']!,
+          studentName:
+              Uri.decodeComponent(state.pathParameters['studentName']!),
+        ),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

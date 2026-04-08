@@ -29,7 +29,7 @@ class _AulaDetailScreenState extends ConsumerState<AulaDetailScreen> {
         title: const Text('Detalhes da Aula'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/agenda'),
+          onPressed: () => context.pop(),
         ),
       ),
       body: aulasAsync.when(
