@@ -65,6 +65,15 @@ class ProfileService {
     return publicUrl;
   }
 
+  Future<List<Profile>> getAllProfiles() async {
+    final data = await _client
+        .from('profiles')
+        .select()
+        .order('role')
+        .order('full_name');
+    return data.map((json) => Profile.fromJson(json)).toList();
+  }
+
   Future<List<Profile>> getPendingProfiles() async {
     final data = await _client
         .from('profiles')

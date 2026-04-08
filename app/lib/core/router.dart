@@ -7,6 +7,7 @@ import '../modules/auth/signup_screen.dart';
 import '../modules/auth/policy_acceptance_screen.dart';
 import '../modules/auth/pending_approval_screen.dart';
 import '../modules/auth/admin_approval_screen.dart';
+import '../modules/auth/admin_users_screen.dart';
 import '../modules/auth/profile_screen.dart';
 import '../modules/agenda/home_screen.dart';
 import '../modules/agenda/my_agenda_screen.dart';
@@ -83,6 +84,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/teacher/dashboard',
         builder: (context, state) => const TeacherDashboardScreen(),
+      ),
+      GoRoute(
+        path: '/admin/users',
+        builder: (context, state) => const AdminUsersScreen(),
       ),
       GoRoute(
         path: '/admin/approvals',

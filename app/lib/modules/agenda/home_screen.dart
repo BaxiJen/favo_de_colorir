@@ -195,7 +195,14 @@ class HomeScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Expanded(child: SizedBox()),
+                        Expanded(
+                          child: _QuickActionCard(
+                            icon: Icons.manage_accounts,
+                            label: 'Gestão\nUsuários',
+                            color: FavoColors.terracotta,
+                            onTap: () => context.go('/admin/users'),
+                          ),
+                        ),
                       ],
                     ),
                   ]);
