@@ -14,6 +14,8 @@ import '../modules/agenda/aula_detail_screen.dart';
 import '../modules/agenda/teacher_dashboard_screen.dart';
 import '../modules/agenda/admin_turmas_screen.dart';
 import '../modules/agenda/reposition_screen.dart';
+import '../modules/cobranca/admin_billing_screen.dart';
+import '../modules/cobranca/my_payments_screen.dart';
 import '../modules/feed/feed_screen.dart';
 import '../modules/materiais/register_materials_screen.dart';
 import '../services/auth_service.dart';
@@ -101,6 +103,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           studentId: state.pathParameters['studentId']!,
           studentName: Uri.decodeComponent(state.pathParameters['studentName']!),
         ),
+      ),
+      GoRoute(
+        path: '/payments',
+        builder: (context, state) => const MyPaymentsScreen(),
+      ),
+      GoRoute(
+        path: '/admin/billing',
+        builder: (context, state) => const AdminBillingScreen(),
       ),
       GoRoute(
         path: '/admin/turmas',

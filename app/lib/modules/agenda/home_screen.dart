@@ -135,9 +135,7 @@ class HomeScreen extends ConsumerWidget {
                     icon: Icons.payment_outlined,
                     label: 'Pagamentos',
                     color: FavoColors.warmGray,
-                    onTap: () {
-                      // TODO: navigate to payments (Sprint 6)
-                    },
+                    onTap: () => context.go('/payments'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -183,6 +181,21 @@ class HomeScreen extends ConsumerWidget {
                             onTap: () => context.go('/admin/turmas'),
                           ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _QuickActionCard(
+                            icon: Icons.attach_money,
+                            label: 'Painel\nFinanceiro',
+                            color: FavoColors.success,
+                            onTap: () => context.go('/admin/billing'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(child: SizedBox()),
                       ],
                     ),
                   ]);
