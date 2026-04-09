@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/supabase_client.dart';
 import '../../core/theme.dart';
@@ -24,8 +23,7 @@ class _AdminBillingScreenState extends ConsumerState<AdminBillingScreen> {
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _selectedMonth =
-        '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    _selectedMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -33,50 +31,37 @@ class _AdminBillingScreenState extends ConsumerState<AdminBillingScreen> {
     final billsAsync = ref.watch(monthBillsProvider(_selectedMonth));
     final summaryFuture = ref.watch(
       FutureProvider<Map<String, double>>((ref) {
-        return ref
-            .read(billingServiceProvider)
-            .getMonthSummary(_selectedMonth);
+        return ref.read(billingServiceProvider).getMonthSummary(_selectedMonth);
       }),
     );
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Painel Financeiro'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/'),
-        ),
         actions: [
-          // Mês anterior / próximo
           IconButton(
             icon: const Icon(Icons.chevron_left),
             onPressed: () => _changeMonth(-1),
-            tooltip: 'Mês anterior',
           ),
           Text(_selectedMonth,
-              style: const TextStyle(fontWeight: FontWeight.bold)),
+              style: Theme.of(context).textTheme.labelLarge),
           IconButton(
             icon: const Icon(Icons.chevron_right),
             onPressed: () => _changeMonth(1),
-            tooltip: 'Próximo mês',
           ),
-          // Exportar CSV
+          IconButton(
+            icon: _isTotalizing
+                ? const SizedBox(
+                    width: 20, height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.calculate),
+            onPressed: _isTotalizing ? null : _totalize,
+            tooltip: 'Totalizar mês',
+          ),
           IconButton(
             icon: const Icon(Icons.download),
             onPressed: _exportCSV,
             tooltip: 'Exportar CSV',
-          ),
-          // Totalizar
-          IconButton(
-            icon: _isTotalizing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.calculate),
-            onPressed: _isTotalizing ? null : _totalize,
-            tooltip: 'Totalizar mês',
           ),
         ],
       ),
@@ -87,41 +72,35 @@ class _AdminBillingScreenState extends ConsumerState<AdminBillingScreen> {
             loading: () => const LinearProgressIndicator(),
             error: (_, _) => const SizedBox.shrink(),
             data: (summary) => Container(
-              padding: const EdgeInsets.all(16),
-              color: FavoColors.honeyLight,
+              padding: const EdgeInsets.all(20),
+              color: FavoColors.surfaceContainerLow,
               child: Row(
                 children: [
-                  _SummaryChip(
-                      'Total', summary['total'] ?? 0, FavoColors.honeyDark),
-                  const SizedBox(width: 12),
-                  _SummaryChip(
-                      'Recebido', summary['paid'] ?? 0, FavoColors.success),
-                  const SizedBox(width: 12),
-                  _SummaryChip(
-                      'Pendente', summary['pending'] ?? 0, FavoColors.error),
+                  _SummaryItem('Total', summary['total'] ?? 0, FavoColors.onSurface),
+                  _SummaryItem('Recebido', summary['paid'] ?? 0, FavoColors.success),
+                  _SummaryItem('Pendente', summary['pending'] ?? 0, FavoColors.error),
                 ],
               ),
             ),
           ),
 
-          // Filter chips
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: SingleChildScrollView(
+          // Filters
+          SizedBox(
+            height: 48,
+            child: ListView(
               scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildFilterChip('Todos', 'all'),
-                  _buildFilterChip('Rascunho', 'draft'),
-                  _buildFilterChip('Pendente', 'pending'),
-                  _buildFilterChip('Pago', 'paid'),
-                  _buildFilterChip('Atrasado', 'overdue'),
-                ],
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              children: [
+                _buildChip('Todos', 'all'),
+                _buildChip('Rascunho', 'draft'),
+                _buildChip('Pendente', 'pending'),
+                _buildChip('Pago', 'paid'),
+                _buildChip('Atrasado', 'overdue'),
+              ],
             ),
           ),
 
-          // Bills list
+          // Bills
           Expanded(
             child: billsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -129,29 +108,30 @@ class _AdminBillingScreenState extends ConsumerState<AdminBillingScreen> {
               data: (bills) {
                 final filtered = _statusFilter == 'all'
                     ? bills
-                    : bills
-                        .where(
-                            (b) => b.cobranca.status.name == _statusFilter)
-                        .toList();
+                    : bills.where((b) => b.cobranca.status.name == _statusFilter).toList();
 
                 if (filtered.isEmpty) {
-                  return const Center(
-                    child: Text('Nenhuma cobrança com este filtro'),
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.receipt_long, size: 48,
+                            color: FavoColors.onSurfaceVariant.withAlpha(80)),
+                        const SizedBox(height: 16),
+                        Text('Nenhuma cobrança',
+                            style: Theme.of(context).textTheme.bodyLarge),
+                      ],
+                    ),
                   );
                 }
 
                 return RefreshIndicator(
-                  onRefresh: () =>
-                      ref.refresh(monthBillsProvider(_selectedMonth).future),
+                  onRefresh: () => ref.refresh(monthBillsProvider(_selectedMonth).future),
                   child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(24),
                     itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      return _AdminBillCard(
-                        item: filtered[index],
-                        monthYear: _selectedMonth,
-                      );
-                    },
+                    itemBuilder: (context, index) =>
+                        _BillCard(item: filtered[index], monthYear: _selectedMonth),
                   ),
                 );
               },
@@ -162,15 +142,13 @@ class _AdminBillingScreenState extends ConsumerState<AdminBillingScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, String value) {
-    final selected = _statusFilter == value;
+  Widget _buildChip(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: FilterChip(
         label: Text(label),
-        selected: selected,
+        selected: _statusFilter == value,
         onSelected: (_) => setState(() => _statusFilter = value),
-        selectedColor: FavoColors.honeyLight,
       ),
     );
   }
@@ -179,40 +157,24 @@ class _AdminBillingScreenState extends ConsumerState<AdminBillingScreen> {
     final parts = _selectedMonth.split('-');
     var year = int.parse(parts[0]);
     var month = int.parse(parts[1]) + delta;
-    if (month > 12) {
-      month = 1;
-      year++;
-    } else if (month < 1) {
-      month = 12;
-      year--;
-    }
-    setState(() {
-      _selectedMonth = '$year-${month.toString().padLeft(2, '0')}';
-    });
+    if (month > 12) { month = 1; year++; }
+    else if (month < 1) { month = 12; year--; }
+    setState(() => _selectedMonth = '$year-${month.toString().padLeft(2, '0')}');
   }
 
   Future<void> _totalize() async {
     setState(() => _isTotalizing = true);
-
     try {
-      final result = await ref
-          .read(billingServiceProvider)
-          .totalizeBills(_selectedMonth);
-
+      final result = await ref.read(billingServiceProvider).totalizeBills(_selectedMonth);
       ref.invalidate(monthBillsProvider(_selectedMonth));
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${result['created']} cobranças criadas'),
-          ),
+          SnackBar(content: Text('${result['created']} cobranças criadas')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
       }
     } finally {
       if (mounted) setState(() => _isTotalizing = false);
@@ -225,111 +187,92 @@ class _AdminBillingScreenState extends ConsumerState<AdminBillingScreen> {
         'exportar-cobranca',
         body: {'month_year': _selectedMonth, 'format': 'csv'},
       );
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'CSV gerado (${(response.data as String).split('\n').length - 1} linhas)'),
-          ),
+          SnackBar(content: Text('CSV gerado (${(response.data as String).split('\n').length - 1} linhas)')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao exportar: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
       }
     }
   }
 }
 
-class _AdminBillCard extends ConsumerWidget {
+class _BillCard extends ConsumerWidget {
   final CobrancaWithStudent item;
   final String monthYear;
 
-  const _AdminBillCard({required this.item, required this.monthYear});
+  const _BillCard({required this.item, required this.monthYear});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bill = item.cobranca;
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: FavoColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: ExpansionTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         leading: CircleAvatar(
-          backgroundColor: _statusColor(bill.status).withAlpha(30),
-          child: Icon(_statusIcon(bill.status),
-              color: _statusColor(bill.status), size: 20),
+          radius: 20,
+          backgroundColor: _statusColor(bill.status).withAlpha(25),
+          child: Icon(_statusIcon(bill.status), color: _statusColor(bill.status), size: 18),
         ),
-        title: Text(item.studentName),
+        title: Text(item.studentName, style: Theme.of(context).textTheme.titleSmall),
         subtitle: Text(
           'R\$ ${bill.totalAmount.toStringAsFixed(2)} · ${_statusLabel(bill.status)}',
+          style: Theme.of(context).textTheme.bodySmall,
         ),
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
             child: Column(
               children: [
-                _DetailRow('Mensalidade', bill.planAmount),
-                _DetailRow('Argila', bill.clayAmount),
-                _DetailRow('Queimas', bill.firingAmount),
-                const Divider(),
-                _DetailRow('Total', bill.totalAmount, bold: true),
-                if (bill.paidAt != null)
-                  _DetailRow(
-                    'Pago em',
-                    0,
-                    trailing:
-                        '${bill.paidAt!.day}/${bill.paidAt!.month}/${bill.paidAt!.year}',
-                  ),
-                if (bill.paymentMethod != null)
-                  _DetailRow(
-                    'Método',
-                    0,
-                    trailing: bill.paymentMethod!.name.toUpperCase(),
-                  ),
+                _Row('Mensalidade', bill.planAmount),
+                _Row('Argila', bill.clayAmount),
+                _Row('Queimas', bill.firingAmount),
+                Divider(color: FavoColors.outlineVariant.withAlpha(40)),
+                _Row('Total', bill.totalAmount, bold: true),
                 const SizedBox(height: 12),
-                // Action buttons
+                // Actions
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    if (bill.status == CobrancaStatus.draft) ...[
+                    if (bill.status == CobrancaStatus.draft)
                       OutlinedButton(
                         onPressed: () async {
-                          await ref
-                              .read(billingServiceProvider)
-                              .confirmBill(bill.id);
+                          await ref.read(billingServiceProvider).confirmBill(bill.id);
                           ref.invalidate(monthBillsProvider(monthYear));
                         },
                         child: const Text('Confirmar'),
                       ),
+                    if (bill.status == CobrancaStatus.pending) ...[
                       const SizedBox(width: 8),
-                    ],
-                    if (bill.status == CobrancaStatus.pending)
                       ElevatedButton.icon(
                         onPressed: () async {
-                          await ref
-                              .read(billingServiceProvider)
-                              .notifyBill(bill.id);
+                          await ref.read(billingServiceProvider).notifyBill(bill.id);
                           ref.invalidate(monthBillsProvider(monthYear));
                         },
                         icon: const Icon(Icons.send, size: 16),
                         label: const Text('Notificar'),
                       ),
-                    if (bill.status == CobrancaStatus.notified ||
-                        bill.status == CobrancaStatus.overdue)
-                      ElevatedButton.icon(
+                    ],
+                    if (bill.status == CobrancaStatus.notified || bill.status == CobrancaStatus.overdue) ...[
+                      const SizedBox(width: 8),
+                      ElevatedButton(
                         onPressed: () async {
-                          await ref
-                              .read(billingServiceProvider)
-                              .registerPayment(
-                                  bill.id, PaymentMethod.external, 'manual');
+                          await ref.read(billingServiceProvider)
+                              .registerPayment(bill.id, PaymentMethod.external, 'manual');
                           ref.invalidate(monthBillsProvider(monthYear));
                         },
-                        icon: const Icon(Icons.check, size: 16),
-                        label: const Text('Registrar pgto manual'),
+                        child: const Text('Pgto Manual'),
                       ),
+                    ],
                   ],
                 ),
               ],
@@ -340,78 +283,62 @@ class _AdminBillCard extends ConsumerWidget {
     );
   }
 
-  IconData _statusIcon(CobrancaStatus status) {
-    return switch (status) {
-      CobrancaStatus.draft => Icons.edit_note,
-      CobrancaStatus.pending => Icons.hourglass_empty,
-      CobrancaStatus.notified => Icons.mark_email_read,
-      CobrancaStatus.paid => Icons.check_circle,
-      CobrancaStatus.overdue => Icons.warning,
-      CobrancaStatus.cancelled => Icons.cancel,
-    };
-  }
+  IconData _statusIcon(CobrancaStatus s) => switch (s) {
+    CobrancaStatus.draft => Icons.edit_note,
+    CobrancaStatus.pending => Icons.hourglass_empty,
+    CobrancaStatus.notified => Icons.mark_email_read,
+    CobrancaStatus.paid => Icons.check_circle,
+    CobrancaStatus.overdue => Icons.warning,
+    CobrancaStatus.cancelled => Icons.cancel,
+  };
 
-  Color _statusColor(CobrancaStatus status) {
-    return switch (status) {
-      CobrancaStatus.paid => FavoColors.success,
-      CobrancaStatus.overdue => FavoColors.error,
-      CobrancaStatus.cancelled => FavoColors.warmGray,
-      _ => FavoColors.honey,
-    };
-  }
+  Color _statusColor(CobrancaStatus s) => switch (s) {
+    CobrancaStatus.paid => FavoColors.success,
+    CobrancaStatus.overdue => FavoColors.error,
+    CobrancaStatus.cancelled => FavoColors.outline,
+    _ => FavoColors.primary,
+  };
 
-  String _statusLabel(CobrancaStatus status) {
-    return switch (status) {
-      CobrancaStatus.draft => 'Rascunho',
-      CobrancaStatus.pending => 'Pendente',
-      CobrancaStatus.notified => 'Notificada',
-      CobrancaStatus.paid => 'Pago',
-      CobrancaStatus.overdue => 'Atrasado',
-      CobrancaStatus.cancelled => 'Cancelado',
-    };
-  }
+  String _statusLabel(CobrancaStatus s) => switch (s) {
+    CobrancaStatus.draft => 'Rascunho',
+    CobrancaStatus.pending => 'Pendente',
+    CobrancaStatus.notified => 'Notificada',
+    CobrancaStatus.paid => 'Pago',
+    CobrancaStatus.overdue => 'Atrasado',
+    CobrancaStatus.cancelled => 'Cancelado',
+  };
 }
 
-class _DetailRow extends StatelessWidget {
+class _Row extends StatelessWidget {
   final String label;
   final double amount;
   final bool bold;
-  final String? trailing;
 
-  const _DetailRow(this.label, this.amount,
-      {this.bold = false, this.trailing});
+  const _Row(this.label, this.amount, {this.bold = false});
 
   @override
   Widget build(BuildContext context) {
     final style = bold
-        ? Theme.of(context)
-            .textTheme
-            .bodyMedium
-            ?.copyWith(fontWeight: FontWeight.bold)
+        ? Theme.of(context).textTheme.titleSmall
         : Theme.of(context).textTheme.bodyMedium;
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
-          Text(label, style: style),
-          const Spacer(),
-          Text(
-            trailing ?? 'R\$ ${amount.toStringAsFixed(2)}',
-            style: style,
-          ),
+          Expanded(child: Text(label, style: style)),
+          Text('R\$ ${amount.toStringAsFixed(2)}', style: style),
         ],
       ),
     );
   }
 }
 
-class _SummaryChip extends StatelessWidget {
+class _SummaryItem extends StatelessWidget {
   final String label;
   final double amount;
   final Color color;
 
-  const _SummaryChip(this.label, this.amount, this.color);
+  const _SummaryItem(this.label, this.amount, this.color);
 
   @override
   Widget build(BuildContext context) {
@@ -419,17 +346,10 @@ class _SummaryChip extends StatelessWidget {
       child: Column(
         children: [
           Text(label,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: color)),
-          Text(
-            'R\$ ${amount.toStringAsFixed(0)}',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-          ),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color)),
+          Text('R\$ ${amount.toStringAsFixed(0)}',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold, color: color)),
         ],
       ),
     );

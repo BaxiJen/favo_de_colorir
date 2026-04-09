@@ -19,7 +19,7 @@
 | 6 | M4 Cobrança Core | **CONCLUÍDO** | 2026-04-08 | 2026-04-08 |
 | 7 | M4 Cobrança Completo | **CONCLUÍDO** | 2026-04-08 | 2026-04-08 |
 | 8 | Integração + Polimento | **CONCLUÍDO** | 2026-04-08 | 2026-04-08 |
-| 9 | Testes + Beta | EM PROGRESSO | 2026-04-08 | — |
+| 9 | Testes + Beta + Redesign | **CONCLUÍDO** | 2026-04-08 | 2026-04-08 |
 
 ---
 
