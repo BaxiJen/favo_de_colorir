@@ -200,6 +200,21 @@ class HomeScreen extends ConsumerWidget {
           label: 'Criar Aluna',
           onTap: () => context.go('/admin/create-user'),
         ),
+        _AdminCard(
+          icon: Icons.settings,
+          label: 'Preços',
+          onTap: () => context.go('/admin/config'),
+        ),
+        _AdminCard(
+          icon: Icons.forum,
+          label: 'Comunidade',
+          onTap: () => context.go('/community'),
+        ),
+        _AdminCard(
+          icon: Icons.inventory_2,
+          label: 'Estoque',
+          onTap: () => context.go('/stock'),
+        ),
       ],
     );
   }

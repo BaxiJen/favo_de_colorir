@@ -16,7 +16,10 @@ import '../modules/agenda/aula_detail_screen.dart';
 import '../modules/agenda/teacher_dashboard_screen.dart';
 import '../modules/agenda/admin_turmas_screen.dart';
 import '../modules/agenda/reposition_screen.dart';
+import '../modules/admin/admin_config_screen.dart';
 import '../modules/cobranca/admin_billing_screen.dart';
+import '../modules/comunidade/community_feed_screen.dart';
+import '../modules/estoque/stock_screen.dart';
 import '../modules/cobranca/my_payments_screen.dart';
 import '../modules/feed/feed_screen.dart';
 import '../modules/materiais/register_materials_screen.dart';
@@ -140,6 +143,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/admin/users',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const AdminUsersScreen(),
+      ),
+      GoRoute(
+        path: '/community',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const CommunityFeedScreen(),
+      ),
+      GoRoute(
+        path: '/stock',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const StockScreen(),
+      ),
+      GoRoute(
+        path: '/admin/config',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AdminConfigScreen(),
       ),
       GoRoute(
         path: '/admin/create-user',
