@@ -1,5 +1,9 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/supabase_client.dart';
@@ -91,6 +95,7 @@ class FeedScreen extends ConsumerWidget {
     final contentCtrl = TextEditingController();
     String? selectedColor;
     bool isPublic = false;
+    final List<XFile> selectedPhotos = [];
 
     final noteColors = [
       {'label': 'Amarelo', 'value': '#FFF9C4'},
@@ -102,9 +107,9 @@ class FeedScreen extends ConsumerWidget {
 
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Nova nota'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: const Text('Nova publicação'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -117,6 +122,89 @@ class FeedScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // Photo picker
+                if (selectedPhotos.isNotEmpty) ...[
+                  SizedBox(
+                    height: 80,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: selectedPhotos.length,
+                      itemBuilder: (ctx, i) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: kIsWeb
+                                  ? Image.network(selectedPhotos[i].path,
+                                      width: 80, height: 80, fit: BoxFit.cover)
+                                  : Image.file(File(selectedPhotos[i].path),
+                                      width: 80, height: 80, fit: BoxFit.cover),
+                            ),
+                            Positioned(
+                              top: 2,
+                              right: 2,
+                              child: GestureDetector(
+                                onTap: () =>
+                                    setState(() => selectedPhotos.removeAt(i)),
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black54,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.close,
+                                      size: 14, color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                Row(
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final picker = ImagePicker();
+                        final images = await picker.pickMultiImage(
+                          maxWidth: 1200,
+                          imageQuality: 85,
+                        );
+                        if (images.isNotEmpty) {
+                          setState(() => selectedPhotos.addAll(images));
+                        }
+                      },
+                      icon: const Icon(Icons.photo_library, size: 18),
+                      label: const Text('Galeria'),
+                    ),
+                    const SizedBox(width: 8),
+                    if (!kIsWeb)
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final picker = ImagePicker();
+                          final photo = await picker.pickImage(
+                            source: ImageSource.camera,
+                            maxWidth: 1200,
+                            imageQuality: 85,
+                          );
+                          if (photo != null) {
+                            setState(() => selectedPhotos.add(photo));
+                          }
+                        },
+                        icon: const Icon(Icons.camera_alt, size: 18),
+                        label: const Text('Câmera'),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Color picker
                 Wrap(
                   spacing: 8,
                   children: noteColors.map((c) {
@@ -153,11 +241,11 @@ class FeedScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Salvar'),
             ),
           ],
@@ -165,17 +253,35 @@ class FeedScreen extends ConsumerWidget {
       ),
     );
 
-    if (result != true || contentCtrl.text.trim().isEmpty) return;
+    if (result != true) return;
+    if (contentCtrl.text.trim().isEmpty && selectedPhotos.isEmpty) return;
 
     try {
       final userId = SupabaseConfig.auth.currentUser!.id;
-      await ref.read(feedServiceProvider).createEntry(
+      final entryType = selectedPhotos.isNotEmpty
+          ? FeedEntryType.photo
+          : FeedEntryType.quickNote;
+
+      final entry = await ref.read(feedServiceProvider).createEntry(
         studentId: userId,
-        entryType: FeedEntryType.quickNote,
-        content: contentCtrl.text.trim(),
+        entryType: entryType,
+        content: contentCtrl.text.trim().isNotEmpty
+            ? contentCtrl.text.trim()
+            : null,
         noteColor: selectedColor,
         isPublic: isPublic,
       );
+
+      // Upload photos
+      for (var i = 0; i < selectedPhotos.length; i++) {
+        final file = File(selectedPhotos[i].path);
+        await ref.read(feedServiceProvider).uploadPhoto(
+          feedEntryId: entry.id,
+          file: file,
+          sortOrder: i,
+        );
+      }
+
       ref.invalidate(myFeedProvider);
     } catch (e) {
       if (context.mounted) {

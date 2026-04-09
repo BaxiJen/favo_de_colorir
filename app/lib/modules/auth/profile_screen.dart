@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme.dart';
 import '../../models/profile.dart';
@@ -59,26 +62,47 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
         const SizedBox(height: 24),
 
-        // Avatar
+        // Avatar (tap to change)
         Center(
-          child: CircleAvatar(
-            radius: 48,
-            backgroundColor: FavoColors.primaryContainer,
-            backgroundImage: profile.avatarUrl != null
-                ? NetworkImage(profile.avatarUrl!)
-                : null,
-            child: profile.avatarUrl == null
-                ? Text(
-                    profile.fullName.isNotEmpty
-                        ? profile.fullName[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                      fontSize: 36,
-                      color: FavoColors.onPrimary,
-                      fontWeight: FontWeight.w700,
+          child: GestureDetector(
+            onTap: () => _pickAvatar(context, ref, profile),
+            child: Stack(
+              children: [
+                CircleAvatar(
+                  radius: 48,
+                  backgroundColor: FavoColors.primaryContainer,
+                  backgroundImage: profile.avatarUrl != null
+                      ? NetworkImage(profile.avatarUrl!)
+                      : null,
+                  child: profile.avatarUrl == null
+                      ? Text(
+                          profile.fullName.isNotEmpty
+                              ? profile.fullName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            fontSize: 36,
+                            color: FavoColors.onPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        )
+                      : null,
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: FavoColors.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: FavoColors.surface, width: 2),
                     ),
-                  )
-                : null,
+                    child: const Icon(Icons.camera_alt,
+                        size: 16, color: FavoColors.onPrimary),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -170,6 +194,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _pickAvatar(
+      BuildContext context, WidgetRef ref, Profile profile) async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      imageQuality: 85,
+    );
+
+    if (image == null) return;
+
+    try {
+      await ref.read(profileServiceProvider).uploadAvatar(
+            profile.id,
+            File(image.path),
+          );
+      ref.invalidate(currentProfileProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto atualizada!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao atualizar foto: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _deleteAccount(

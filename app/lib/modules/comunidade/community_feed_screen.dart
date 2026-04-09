@@ -1,7 +1,12 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/supabase_client.dart';
 import '../../core/theme.dart';
 import '../../services/community_service.dart';
 
@@ -56,34 +61,107 @@ class CommunityFeedScreen extends ConsumerWidget {
 
   Future<void> _newPost(BuildContext context, WidgetRef ref) async {
     final ctrl = TextEditingController();
+    XFile? selectedImage;
+
     final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Nova publicação'),
-        content: TextField(
-          controller: ctrl,
-          maxLines: 5,
-          decoration: const InputDecoration(
-            hintText: 'Compartilhe algo com o ateliê...',
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: const Text('Nova publicação'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: ctrl,
+                  maxLines: 5,
+                  decoration: const InputDecoration(
+                    hintText: 'Compartilhe algo com o ateliê...',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (selectedImage != null)
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: kIsWeb
+                            ? Image.network(selectedImage!.path,
+                                height: 120, width: double.infinity,
+                                fit: BoxFit.cover)
+                            : Image.file(File(selectedImage!.path),
+                                height: 120, width: double.infinity,
+                                fit: BoxFit.cover),
+                      ),
+                      Positioned(
+                        top: 4, right: 4,
+                        child: GestureDetector(
+                          onTap: () => setState(() => selectedImage = null),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54, shape: BoxShape.circle),
+                            child: const Icon(Icons.close,
+                                size: 16, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final picker = ImagePicker();
+                      final img = await picker.pickImage(
+                        source: ImageSource.gallery,
+                        maxWidth: 1200,
+                        imageQuality: 85,
+                      );
+                      if (img != null) setState(() => selectedImage = img);
+                    },
+                    icon: const Icon(Icons.photo, size: 18),
+                    label: const Text('Adicionar foto'),
+                  ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Publicar'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Publicar'),
-          ),
-        ],
       ),
     );
 
-    if (result != true || ctrl.text.trim().isEmpty) return;
+    if (result != true) return;
+    if (ctrl.text.trim().isEmpty && selectedImage == null) return;
 
     try {
-      await ref.read(communityServiceProvider).createPost(ctrl.text.trim());
+      // Upload image to storage if selected
+      List<String>? imageUrls;
+      if (selectedImage != null) {
+        final userId = SupabaseConfig.auth.currentUser!.id;
+        final ext = selectedImage!.path.split('.').last;
+        final path = 'community/$userId/${DateTime.now().millisecondsSinceEpoch}.$ext';
+
+        await SupabaseConfig.storage
+            .from('feed')
+            .upload(path, File(selectedImage!.path));
+
+        final url = SupabaseConfig.storage.from('feed').getPublicUrl(path);
+        imageUrls = [url];
+      }
+
+      await ref.read(communityServiceProvider).createPost(
+        ctrl.text.trim().isNotEmpty ? ctrl.text.trim() : 'Foto',
+        imageUrls: imageUrls,
+      );
       ref.invalidate(communityFeedProvider);
     } catch (e) {
       if (context.mounted) {
