@@ -118,25 +118,39 @@ class CommunityService {
         .order('created_at', ascending: false)
         .limit(limit);
 
-    final posts = <CommunityPost>[];
-    for (final row in data) {
+    if (data.isEmpty) return [];
+
+    final postIds = data.map((r) => r['id'] as String).toList();
+
+    // Batch: todos os likes e comments de uma vez (2 queries, não N*2)
+    final allLikes = await _client
+        .from('community_likes')
+        .select('post_id, user_id')
+        .inFilter('post_id', postIds);
+
+    final allComments = await _client
+        .from('community_comments')
+        .select('post_id')
+        .inFilter('post_id', postIds);
+
+    // Agrupar por post
+    final likesByPost = <String, List<Map<String, dynamic>>>{};
+    for (final l in allLikes) {
+      (likesByPost[l['post_id'] as String] ??= []).add(l);
+    }
+
+    final commentCountByPost = <String, int>{};
+    for (final c in allComments) {
+      final pid = c['post_id'] as String;
+      commentCountByPost[pid] = (commentCountByPost[pid] ?? 0) + 1;
+    }
+
+    return data.map((row) {
       final postId = row['id'] as String;
-
-      // Count likes
-      final likesData = await _client
-          .from('community_likes')
-          .select('user_id')
-          .eq('post_id', postId);
-
-      // Count comments
-      final commentsData = await _client
-          .from('community_comments')
-          .select('id')
-          .eq('post_id', postId);
-
       final profile = row['profiles'] as Map<String, dynamic>?;
+      final postLikes = likesByPost[postId] ?? [];
 
-      posts.add(CommunityPost(
+      return CommunityPost(
         id: postId,
         authorId: row['author_id'] as String,
         content: row['content'] as String?,
@@ -148,13 +162,11 @@ class CommunityService {
         createdAt: DateTime.parse(row['created_at'] as String),
         authorName: profile?['full_name'] as String? ?? '',
         authorAvatar: profile?['avatar_url'] as String?,
-        likeCount: likesData.length,
-        commentCount: commentsData.length,
-        likedByMe:
-            likesData.any((l) => l['user_id'] == userId),
-      ));
-    }
-    return posts;
+        likeCount: postLikes.length,
+        commentCount: commentCountByPost[postId] ?? 0,
+        likedByMe: postLikes.any((l) => l['user_id'] == userId),
+      );
+    }).toList();
   }
 
   Future<void> createPost(String content, {List<String>? imageUrls}) async {

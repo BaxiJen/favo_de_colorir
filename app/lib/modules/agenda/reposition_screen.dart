@@ -231,10 +231,52 @@ class _TurmaCard extends ConsumerWidget {
       return;
     }
 
+    // Selecionar a aula original (a que faltou)
+    final declined = await service.getMyDeclinedAulas(userId);
+    if (!context.mounted) return;
+
+    if (declined.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nenhuma falta registrada para repor.')),
+      );
+      return;
+    }
+
+    final selectedOriginal = await showDialog<DeclinedAula>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Qual aula você faltou?'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: declined.length,
+            itemBuilder: (ctx, i) {
+              final d = declined[i];
+              final dateStr = DateFormat('dd/MM', 'pt_BR').format(d.scheduledDate);
+              return ListTile(
+                title: Text(d.turmaName),
+                subtitle: Text(dateStr),
+                onTap: () => Navigator.pop(ctx, d),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedOriginal == null) return;
+
     try {
       await service.requestReposition(
         studentId: userId,
-        originalAulaId: makeupAulaId,
+        originalAulaId: selectedOriginal.aulaId,
         makeupAulaId: makeupAulaId,
       );
       ref.invalidate(myRepositionsProvider);

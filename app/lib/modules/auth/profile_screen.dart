@@ -133,14 +133,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
         // Menu items
         _MenuItem(
-          icon: Icons.settings_outlined,
-          label: 'Account Settings',
-          onTap: () {},
-        ),
-        _MenuItem(
-          icon: Icons.help_outline,
-          label: 'Help Center',
-          onTap: () {},
+          icon: Icons.notifications_outlined,
+          label: 'Notificações',
+          onTap: () => context.push('/notifications'),
         ),
         const SizedBox(height: 24),
 

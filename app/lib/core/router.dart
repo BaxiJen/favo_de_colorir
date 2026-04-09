@@ -9,6 +9,7 @@ import '../modules/auth/pending_approval_screen.dart';
 import '../modules/auth/admin_approval_screen.dart';
 import '../modules/auth/admin_create_user_screen.dart';
 import '../modules/auth/admin_users_screen.dart';
+import '../modules/auth/notifications_screen.dart';
 import '../modules/auth/profile_screen.dart';
 import '../modules/agenda/home_screen.dart';
 import '../modules/agenda/my_agenda_screen.dart';
@@ -16,6 +17,7 @@ import '../modules/agenda/aula_detail_screen.dart';
 import '../modules/agenda/teacher_dashboard_screen.dart';
 import '../modules/agenda/admin_turmas_screen.dart';
 import '../modules/agenda/reposition_screen.dart';
+import '../modules/agenda/turma_detail_screen.dart';
 import '../modules/admin/admin_config_screen.dart';
 import '../modules/admin/admin_notifications_screen.dart';
 import '../modules/admin/admin_policies_screen.dart';
@@ -147,6 +149,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AdminUsersScreen(),
       ),
       GoRoute(
+        path: '/notifications',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
         path: '/community',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const CommunityFeedScreen(),
@@ -185,6 +192,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/admin/turmas',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const AdminTurmasScreen(),
+      ),
+      GoRoute(
+        path: '/admin/turmas/:id/:name',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => TurmaDetailScreen(
+          turmaId: state.pathParameters['id']!,
+          turmaName: Uri.decodeComponent(state.pathParameters['name']!),
+        ),
       ),
       GoRoute(
         path: '/admin/billing',

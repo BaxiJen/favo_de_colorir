@@ -45,7 +45,7 @@ class HomeScreen extends ConsumerWidget {
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.notifications_outlined),
-                    onPressed: () {},
+                    onPressed: () => context.push('/notifications'),
                   ),
                 ],
               ),

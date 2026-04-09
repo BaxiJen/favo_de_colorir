@@ -82,8 +82,46 @@ class TurmaWithAvailability {
   });
 }
 
+/// Aulas onde a aluna declinou (candidatas a reposição)
+final myDeclinedAulasProvider = FutureProvider<List<DeclinedAula>>((ref) async {
+  final userId = SupabaseConfig.auth.currentUser?.id;
+  if (userId == null) return [];
+  return ref.read(repositionServiceProvider).getMyDeclinedAulas(userId);
+});
+
+class DeclinedAula {
+  final String aulaId;
+  final String turmaName;
+  final DateTime scheduledDate;
+
+  const DeclinedAula({
+    required this.aulaId,
+    required this.turmaName,
+    required this.scheduledDate,
+  });
+}
+
 class RepositionService {
   final _client = SupabaseConfig.client;
+
+  Future<List<DeclinedAula>> getMyDeclinedAulas(String userId) async {
+    final data = await _client
+        .from('presencas')
+        .select('aula_id, aulas(scheduled_date, turmas(name))')
+        .eq('student_id', userId)
+        .eq('confirmation', 'declined')
+        .order('created_at', ascending: false);
+
+    return data.map((row) {
+      final aulaData = row['aulas'] as Map<String, dynamic>?;
+      final turmaData = aulaData?['turmas'] as Map<String, dynamic>?;
+      return DeclinedAula(
+        aulaId: row['aula_id'] as String,
+        turmaName: turmaData?['name'] as String? ?? '',
+        scheduledDate: DateTime.parse(aulaData?['scheduled_date'] as String),
+      );
+    }).toList();
+  }
 
   Future<List<RepositionRequest>> getMyRepositions(String userId) async {
     final data = await _client

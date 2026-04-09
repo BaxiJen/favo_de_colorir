@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../models/turma.dart';
@@ -241,39 +242,45 @@ class _TurmaCard extends ConsumerWidget {
         color: FavoColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: FavoColors.primaryContainer.withAlpha(30),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Center(
-              child: Text(
-                turma.dayOfWeek != null ? _weekDays[turma.dayOfWeek!] : '?',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: FavoColors.primary,
-                    ),
+      child: InkWell(
+        onTap: () {
+          final encoded = Uri.encodeComponent(turma.name);
+          context.push('/admin/turmas/${turma.id}/$encoded');
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: FavoColors.primaryContainer.withAlpha(30),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Center(
+                child: Text(
+                  turma.dayOfWeek != null ? _weekDays[turma.dayOfWeek!] : '?',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: FavoColors.primary,
+                      ),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(turma.name,
-                    style: Theme.of(context).textTheme.titleSmall),
-                Text(
-                  '${turma.startTime.substring(0, 5)} – ${turma.endTime.substring(0, 5)} · ${turma.capacity} vagas',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(turma.name,
+                      style: Theme.of(context).textTheme.titleSmall),
+                  Text(
+                    '${turma.startTime.substring(0, 5)} – ${turma.endTime.substring(0, 5)} · ${turma.capacity} vagas',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
             ),
-          ),
-          IconButton(
+            IconButton(
             icon: const Icon(Icons.more_vert, size: 20),
             onPressed: () async {
               final action = await showModalBottomSheet<String>(
@@ -295,7 +302,8 @@ class _TurmaCard extends ConsumerWidget {
               }
             },
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
