@@ -179,9 +179,11 @@ class _TurmaDayCard extends ConsumerWidget {
                               color: FavoColors.primary,
                               tooltip: 'Registrar materiais',
                               onPressed: () {
-                                final encoded = Uri.encodeComponent(p.studentName);
-                                context.push(
-                                    '/materiais/${aula.aula.id}/${p.presenca.studentId}/$encoded');
+                                context.push('/materiais', extra: {
+                                  'aulaId': aula.aula.id,
+                                  'studentId': p.presenca.studentId,
+                                  'studentName': p.studentName,
+                                });
                               },
                             ),
                           ],

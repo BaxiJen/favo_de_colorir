@@ -194,12 +194,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AdminTurmasScreen(),
       ),
       GoRoute(
-        path: '/admin/turmas/:id/:name',
+        path: '/admin/turma-detail',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => TurmaDetailScreen(
-          turmaId: state.pathParameters['id']!,
-          turmaName: Uri.decodeComponent(state.pathParameters['name']!),
-        ),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return TurmaDetailScreen(
+            turmaId: extra['turmaId'] as String,
+            turmaName: extra['turmaName'] as String,
+          );
+        },
       ),
       GoRoute(
         path: '/admin/billing',
@@ -212,14 +215,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const TeacherDashboardScreen(),
       ),
       GoRoute(
-        path: '/materiais/:aulaId/:studentId/:studentName',
+        path: '/materiais',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => RegisterMaterialsScreen(
-          aulaId: state.pathParameters['aulaId']!,
-          studentId: state.pathParameters['studentId']!,
-          studentName:
-              Uri.decodeComponent(state.pathParameters['studentName']!),
-        ),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return RegisterMaterialsScreen(
+            aulaId: extra['aulaId'] as String,
+            studentId: extra['studentId'] as String,
+            studentName: extra['studentName'] as String,
+          );
+        },
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

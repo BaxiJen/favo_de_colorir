@@ -244,8 +244,10 @@ class _TurmaCard extends ConsumerWidget {
       ),
       child: InkWell(
         onTap: () {
-          final encoded = Uri.encodeComponent(turma.name);
-          context.push('/admin/turmas/${turma.id}/$encoded');
+          context.push('/admin/turma-detail', extra: {
+            'turmaId': turma.id,
+            'turmaName': turma.name,
+          });
         },
         borderRadius: BorderRadius.circular(20),
         child: Row(
