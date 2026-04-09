@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/supabase_client.dart';
 import '../../core/theme.dart';
 import '../../models/presenca.dart';
 import '../../services/agenda_service.dart';
@@ -204,13 +205,13 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _NextAulaCard extends StatelessWidget {
+class _NextAulaCard extends ConsumerWidget {
   final AulaWithTurma item;
 
   const _NextAulaCard({required this.item});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final confirmation = item.minhaPresenca?.confirmation;
 
     return Container(
@@ -279,7 +280,13 @@ class _NextAulaCard extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: confirmation == ConfirmationStatus.confirmed
                         ? null
-                        : () {},
+                        : () async {
+                            final userId = SupabaseConfig.auth.currentUser!.id;
+                            await ref.read(agendaServiceProvider)
+                                .confirmPresenca(item.aula.id, userId);
+                            ref.invalidate(myWeekAulasProvider);
+                            ref.invalidate(nextAulaProvider);
+                          },
                     child: const Text('Vou'),
                   ),
                 ),
@@ -291,7 +298,13 @@ class _NextAulaCard extends StatelessWidget {
                   child: OutlinedButton(
                     onPressed: confirmation == ConfirmationStatus.declined
                         ? null
-                        : () {},
+                        : () async {
+                            final userId = SupabaseConfig.auth.currentUser!.id;
+                            await ref.read(agendaServiceProvider)
+                                .declinePresenca(item.aula.id, userId);
+                            ref.invalidate(myWeekAulasProvider);
+                            ref.invalidate(nextAulaProvider);
+                          },
                     child: const Text('Não Vou'),
                   ),
                 ),

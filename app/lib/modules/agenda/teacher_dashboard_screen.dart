@@ -14,34 +14,38 @@ class TeacherDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final teacherId = SupabaseConfig.auth.currentUser!.id;
-    final turmasAsync = FutureProvider<List<Turma>>((ref) {
+    final turmasProvider = FutureProvider<List<Turma>>((ref) {
       return ref.read(agendaServiceProvider).getTeacherTurmas(teacherId);
     });
-
-    final turmas = ref.watch(turmasAsync);
+    final turmas = ref.watch(turmasProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard Professora'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/'),
-        ),
-      ),
+      appBar: AppBar(title: const Text('Dashboard do Dia')),
       body: turmas.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Erro: $error')),
         data: (turmaList) {
           if (turmaList.isEmpty) {
-            return const Center(child: Text('Nenhuma turma atribuída'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.dashboard_outlined,
+                      size: 48,
+                      color: FavoColors.onSurfaceVariant.withAlpha(80)),
+                  const SizedBox(height: 16),
+                  Text('Nenhuma turma atribuída',
+                      style: Theme.of(context).textTheme.bodyLarge),
+                ],
+              ),
+            );
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
             itemCount: turmaList.length,
-            itemBuilder: (context, index) {
-              return _TurmaDayCard(turma: turmaList[index]);
-            },
+            itemBuilder: (context, index) =>
+                _TurmaDayCard(turma: turmaList[index]),
           );
         },
       ),
@@ -58,125 +62,146 @@ class _TurmaDayCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final aulasAsync = ref.watch(turmaAulasDoDiaProvider(turma.id));
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: FavoColors.honey,
-                    shape: BoxShape.circle,
-                  ),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: FavoColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: FavoColors.primaryContainer.withAlpha(30),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  turma.name,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const Spacer(),
-                Text(
-                  '${turma.startTime.substring(0, 5)} – ${turma.endTime.substring(0, 5)}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            aulasAsync.when(
-              loading: () => const LinearProgressIndicator(),
-              error: (_, _) => const Text('Erro ao carregar'),
-              data: (aulasWithPresencas) {
-                if (aulasWithPresencas.isEmpty) {
-                  return Text(
-                    'Sem aula hoje',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  );
-                }
-
-                final aula = aulasWithPresencas.first;
-                final confirmed = aula.presencas
-                    .where((p) =>
-                        p.presenca.confirmation ==
-                        ConfirmationStatus.confirmed)
-                    .length;
-                final declined = aula.presencas
-                    .where((p) =>
-                        p.presenca.confirmation ==
-                        ConfirmationStatus.declined)
-                    .length;
-                final pending = aula.presencas.length - confirmed - declined;
-
-                return Column(
+                child: const Icon(Icons.palette_outlined,
+                    color: FavoColors.primary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        _StatusChip(
-                          icon: Icons.check,
-                          label: '$confirmed',
-                          color: FavoColors.success,
-                        ),
-                        const SizedBox(width: 8),
-                        _StatusChip(
-                          icon: Icons.close,
-                          label: '$declined',
-                          color: FavoColors.error,
-                        ),
-                        const SizedBox(width: 8),
-                        _StatusChip(
-                          icon: Icons.hourglass_empty,
-                          label: '$pending',
-                          color: FavoColors.honey,
-                        ),
-                        const Spacer(),
-                        Text(
-                          '${aula.presencas.length}/${turma.capacity}',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    ...aula.presencas.map(
-                      (p) => Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(
-                          children: [
-                            Icon(
-                              _confirmIcon(p.presenca.confirmation),
-                              size: 16,
-                              color: _confirmColor(p.presenca.confirmation),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(p.studentName),
-                          ],
-                        ),
-                      ),
+                    Text(turma.name,
+                        style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      '${turma.startTime.substring(0, 5)} – ${turma.endTime.substring(0, 5)}',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
-                );
-              },
-            ),
-          ],
-        ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          aulasAsync.when(
+            loading: () => const LinearProgressIndicator(),
+            error: (_, _) =>
+                const Text('Erro ao carregar', style: TextStyle(color: FavoColors.error)),
+            data: (aulasWithPresencas) {
+              if (aulasWithPresencas.isEmpty) {
+                return Text('Sem aula hoje',
+                    style: Theme.of(context).textTheme.bodySmall);
+              }
+
+              final aula = aulasWithPresencas.first;
+              final confirmed = aula.presencas
+                  .where((p) =>
+                      p.presenca.confirmation == ConfirmationStatus.confirmed)
+                  .length;
+              final declined = aula.presencas
+                  .where((p) =>
+                      p.presenca.confirmation == ConfirmationStatus.declined)
+                  .length;
+              final pending = aula.presencas.length - confirmed - declined;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Counters
+                  Row(
+                    children: [
+                      _Counter(
+                          icon: Icons.check, count: confirmed, color: FavoColors.success),
+                      const SizedBox(width: 12),
+                      _Counter(
+                          icon: Icons.close, count: declined, color: FavoColors.error),
+                      const SizedBox(width: 12),
+                      _Counter(
+                          icon: Icons.hourglass_empty,
+                          count: pending,
+                          color: FavoColors.primary),
+                      const Spacer(),
+                      Text(
+                        '${aula.presencas.length}/${turma.capacity}',
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Student list
+                  ...aula.presencas.map((p) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 14,
+                              backgroundColor:
+                                  _confirmColor(p.presenca.confirmation)
+                                      .withAlpha(30),
+                              child: Icon(
+                                _confirmIcon(p.presenca.confirmation),
+                                size: 14,
+                                color:
+                                    _confirmColor(p.presenca.confirmation),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(p.studentName,
+                                  style: Theme.of(context).textTheme.bodyMedium),
+                            ),
+                            // Botão registrar materiais
+                            IconButton(
+                              icon: const Icon(Icons.edit_note, size: 20),
+                              color: FavoColors.primary,
+                              tooltip: 'Registrar materiais',
+                              onPressed: () {
+                                final encoded = Uri.encodeComponent(p.studentName);
+                                context.go(
+                                    '/materiais/${aula.aula.id}/${p.presenca.studentId}/$encoded');
+                              },
+                            ),
+                          ],
+                        ),
+                      )),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 
   IconData _confirmIcon(ConfirmationStatus status) {
     return switch (status) {
-      ConfirmationStatus.confirmed => Icons.check_circle,
-      ConfirmationStatus.declined => Icons.cancel,
-      ConfirmationStatus.pending => Icons.help_outline,
-      ConfirmationStatus.noResponse => Icons.remove_circle_outline,
+      ConfirmationStatus.confirmed => Icons.check,
+      ConfirmationStatus.declined => Icons.close,
+      ConfirmationStatus.pending => Icons.hourglass_empty,
+      ConfirmationStatus.noResponse => Icons.remove,
     };
   }
 
@@ -184,29 +209,26 @@ class _TurmaDayCard extends ConsumerWidget {
     return switch (status) {
       ConfirmationStatus.confirmed => FavoColors.success,
       ConfirmationStatus.declined => FavoColors.error,
-      ConfirmationStatus.pending => FavoColors.honey,
-      ConfirmationStatus.noResponse => FavoColors.warmGray,
+      ConfirmationStatus.pending => FavoColors.primary,
+      ConfirmationStatus.noResponse => FavoColors.outline,
     };
   }
 }
 
-class _StatusChip extends StatelessWidget {
+class _Counter extends StatelessWidget {
   final IconData icon;
-  final String label;
+  final int count;
   final Color color;
 
-  const _StatusChip({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
+  const _Counter(
+      {required this.icon, required this.count, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withAlpha(25),
+        color: color.withAlpha(20),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -214,9 +236,9 @@ class _StatusChip extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
-          Text(label,
+          Text('$count',
               style: TextStyle(
-                  color: color, fontSize: 12, fontWeight: FontWeight.bold)),
+                  color: color, fontSize: 13, fontWeight: FontWeight.bold)),
         ],
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/supabase_client.dart';
+import '../../core/theme.dart';
 import '../../models/peca.dart';
 import '../../services/material_service.dart';
 
@@ -34,18 +35,12 @@ class _RegisterMaterialsScreenState
   // Peça
   String? _selectedPecaId;
   PecaStage _selectedStage = PecaStage.modeled;
-  final _heightCtrl = TextEditingController();
-  final _diameterCtrl = TextEditingController();
-  final _weightCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
   @override
   void dispose() {
     _kgUsedCtrl.dispose();
     _kgReturnedCtrl.dispose();
-    _heightCtrl.dispose();
-    _diameterCtrl.dispose();
-    _weightCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }
@@ -56,178 +51,170 @@ class _RegisterMaterialsScreenState
     final tiposPeca = ref.watch(tiposPecaProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Materiais — ${widget.studentName}'),
-      ),
-      body: SingleChildScrollView(
+      appBar: AppBar(title: Text(widget.studentName)),
+      body: ListView(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Argila ──
-            Text('Registro de Argila',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 12),
+        children: [
+          // Header
+          Text('Registrar Materiais',
+              style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 4),
+          Text('Registre o uso de argila e peças desta aluna.',
+              style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 28),
 
-            tiposArgila.when(
-              loading: () => const LinearProgressIndicator(),
-              error: (e, _) => Text('Erro: $e'),
-              data: (tipos) => DropdownButtonFormField<String>(
-                initialValue: _selectedArgilaId,
-                decoration:
-                    const InputDecoration(labelText: 'Tipo de argila'),
-                items: tipos
-                    .map((t) => DropdownMenuItem(
-                          value: t.id,
-                          child: Text('${t.name} (R\$${t.pricePerKg.toStringAsFixed(2)}/kg)'),
-                        ))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedArgilaId = v),
-              ),
+          // ── Argila ──
+          _SectionTitle('ARGILA'),
+          const SizedBox(height: 12),
+
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: FavoColors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(20),
             ),
-            const SizedBox(height: 12),
-
-            Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _kgUsedCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Kg usado',
-                      suffixText: 'kg',
-                    ),
+                tiposArgila.when(
+                  loading: () => const LinearProgressIndicator(),
+                  error: (e, _) => Text('Erro: $e'),
+                  data: (tipos) => DropdownButtonFormField<String>(
+                    decoration:
+                        const InputDecoration(labelText: 'Tipo de argila'),
+                    items: tipos
+                        .map((t) => DropdownMenuItem(
+                              value: t.id,
+                              child: Text(
+                                  '${t.name} (R\$${t.pricePerKg.toStringAsFixed(2)}/kg)'),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setState(() => _selectedArgilaId = v),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _kgReturnedCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Kg devolvido',
-                      suffixText: 'kg',
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _kgUsedCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                            labelText: 'Kg usado', suffixText: 'kg'),
+                      ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _kgReturnedCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                            labelText: 'Devolvido', suffixText: 'kg'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _registerClay,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Registrar Argila'),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+          ),
+          const SizedBox(height: 24),
 
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _isLoading ? null : _registerClay,
-                icon: const Icon(Icons.add),
-                label: const Text('Registrar Argila'),
-              ),
+          // ── Peça ──
+          _SectionTitle('PEÇA'),
+          const SizedBox(height: 12),
+
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: FavoColors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(20),
             ),
-
-            const Divider(height: 40),
-
-            // ── Peça ──
-            Text('Registro de Peça',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 12),
-
-            tiposPeca.when(
-              loading: () => const LinearProgressIndicator(),
-              error: (e, _) => Text('Erro: $e'),
-              data: (tipos) => DropdownButtonFormField<String>(
-                initialValue: _selectedPecaId,
-                decoration: const InputDecoration(labelText: 'Tipo de peça'),
-                items: tipos
-                    .map((t) => DropdownMenuItem(
-                          value: t.id,
-                          child: Text(
-                              '${t.name} (esmalte: R\$${t.glazeFiringPrice.toStringAsFixed(2)})'),
-                        ))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedPecaId = v),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            DropdownButtonFormField<PecaStage>(
-              initialValue: _selectedStage,
-              decoration: const InputDecoration(labelText: 'Etapa'),
-              items: const [
-                DropdownMenuItem(
-                    value: PecaStage.modeled, child: Text('Modelou')),
-                DropdownMenuItem(
-                    value: PecaStage.painted, child: Text('Pintou')),
-                DropdownMenuItem(
-                    value: PecaStage.bisqueFired,
-                    child: Text('Queima biscoito')),
-                DropdownMenuItem(
-                    value: PecaStage.glazeFired,
-                    child: Text('Queima esmalte')),
-              ],
-              onChanged: (v) =>
-                  setState(() => _selectedStage = v ?? PecaStage.modeled),
-            ),
-            const SizedBox(height: 12),
-
-            // Campos opcionais
-            Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _heightCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Altura (cm)',
-                    ),
+                tiposPeca.when(
+                  loading: () => const LinearProgressIndicator(),
+                  error: (e, _) => Text('Erro: $e'),
+                  data: (tipos) => DropdownButtonFormField<String>(
+                    decoration:
+                        const InputDecoration(labelText: 'Tipo de peça'),
+                    items: tipos
+                        .map((t) => DropdownMenuItem(
+                              value: t.id,
+                              child: Text(
+                                  '${t.name} (esmalte: R\$${t.glazeFiringPrice.toStringAsFixed(2)})'),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setState(() => _selectedPecaId = v),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _diameterCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Diâmetro (cm)',
+                const SizedBox(height: 16),
+
+                // Stage chips
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Etapa',
+                      style: Theme.of(context).textTheme.labelMedium),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Modelou'),
+                      selected: _selectedStage == PecaStage.modeled,
+                      onSelected: (_) =>
+                          setState(() => _selectedStage = PecaStage.modeled),
                     ),
+                    ChoiceChip(
+                      label: const Text('Pintou'),
+                      selected: _selectedStage == PecaStage.painted,
+                      onSelected: (_) =>
+                          setState(() => _selectedStage = PecaStage.painted),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Biscoito'),
+                      selected: _selectedStage == PecaStage.bisqueFired,
+                      onSelected: (_) => setState(
+                          () => _selectedStage = PecaStage.bisqueFired),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Esmalte'),
+                      selected: _selectedStage == PecaStage.glazeFired,
+                      onSelected: (_) => setState(
+                          () => _selectedStage = PecaStage.glazeFired),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _notesCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Notas (opcional)'),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 16),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _registerPiece,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Registrar Peça'),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _weightCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Peso (g)',
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _notesCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Notas',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _isLoading ? null : _registerPiece,
-                icon: const Icon(Icons.add),
-                label: const Text('Registrar Peça'),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -241,20 +228,17 @@ class _RegisterMaterialsScreenState
     }
 
     setState(() => _isLoading = true);
-
     try {
       await ref.read(materialServiceProvider).registerClay(
-        aulaId: widget.aulaId,
-        studentId: widget.studentId,
-        tipoArgilaId: _selectedArgilaId!,
-        kgUsed: double.parse(_kgUsedCtrl.text),
-        kgReturned: double.tryParse(_kgReturnedCtrl.text) ?? 0,
-        registeredBy: SupabaseConfig.auth.currentUser!.id,
-      );
-
+            aulaId: widget.aulaId,
+            studentId: widget.studentId,
+            tipoArgilaId: _selectedArgilaId!,
+            kgUsed: double.parse(_kgUsedCtrl.text),
+            kgReturned: double.tryParse(_kgReturnedCtrl.text) ?? 0,
+            registeredBy: SupabaseConfig.auth.currentUser!.id,
+          );
       _kgUsedCtrl.clear();
       _kgReturnedCtrl.text = '0';
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Argila registrada!')),
@@ -280,25 +264,16 @@ class _RegisterMaterialsScreenState
     }
 
     setState(() => _isLoading = true);
-
     try {
       await ref.read(materialServiceProvider).registerPiece(
-        studentId: widget.studentId,
-        aulaId: widget.aulaId,
-        tipoPecaId: _selectedPecaId!,
-        stage: _selectedStage,
-        heightCm: double.tryParse(_heightCtrl.text),
-        diameterCm: double.tryParse(_diameterCtrl.text),
-        weightG: double.tryParse(_weightCtrl.text),
-        notes: _notesCtrl.text.isNotEmpty ? _notesCtrl.text : null,
-        registeredBy: SupabaseConfig.auth.currentUser!.id,
-      );
-
-      _heightCtrl.clear();
-      _diameterCtrl.clear();
-      _weightCtrl.clear();
+            studentId: widget.studentId,
+            aulaId: widget.aulaId,
+            tipoPecaId: _selectedPecaId!,
+            stage: _selectedStage,
+            notes: _notesCtrl.text.isNotEmpty ? _notesCtrl.text : null,
+            registeredBy: SupabaseConfig.auth.currentUser!.id,
+          );
       _notesCtrl.clear();
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Peça registrada!')),
@@ -313,5 +288,21 @@ class _RegisterMaterialsScreenState
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            letterSpacing: 1.5,
+            color: FavoColors.onSurfaceVariant,
+          ),
+    );
   }
 }
