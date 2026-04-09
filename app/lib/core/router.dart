@@ -17,6 +17,8 @@ import '../modules/agenda/teacher_dashboard_screen.dart';
 import '../modules/agenda/admin_turmas_screen.dart';
 import '../modules/agenda/reposition_screen.dart';
 import '../modules/admin/admin_config_screen.dart';
+import '../modules/admin/admin_notifications_screen.dart';
+import '../modules/admin/admin_policies_screen.dart';
 import '../modules/cobranca/admin_billing_screen.dart';
 import '../modules/comunidade/community_feed_screen.dart';
 import '../modules/estoque/stock_screen.dart';
@@ -158,6 +160,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/admin/config',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const AdminConfigScreen(),
+      ),
+      GoRoute(
+        path: '/admin/policies',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AdminPoliciesScreen(),
+      ),
+      GoRoute(
+        path: '/admin/notifications',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const AdminNotificationsScreen(),
       ),
       GoRoute(
         path: '/admin/create-user',

@@ -215,6 +215,16 @@ class HomeScreen extends ConsumerWidget {
           label: 'Estoque',
           onTap: () => context.go('/stock'),
         ),
+        _AdminCard(
+          icon: Icons.description,
+          label: 'Políticas',
+          onTap: () => context.go('/admin/policies'),
+        ),
+        _AdminCard(
+          icon: Icons.campaign,
+          label: 'Recados',
+          onTap: () => context.go('/admin/notifications'),
+        ),
       ],
     );
   }
