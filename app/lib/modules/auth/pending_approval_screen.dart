@@ -14,48 +14,63 @@ class PendingApprovalScreen extends ConsumerWidget {
       body: SafeArea(
         child: Center(
           child: Padding(
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.all(40),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  width: 100,
-                  height: 100,
-                  decoration: const BoxDecoration(
-                    color: FavoColors.honeyLight,
-                    shape: BoxShape.circle,
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: FavoColors.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(24),
                   ),
                   child: const Icon(
                     Icons.hourglass_top_rounded,
-                    size: 48,
-                    color: FavoColors.honey,
+                    size: 36,
+                    color: FavoColors.primary,
                   ),
                 ),
                 const SizedBox(height: 32),
                 Text(
-                  'Aguardando aprovação',
-                  style: Theme.of(context).textTheme.headlineMedium,
+                  'Aguardando\naprovação',
+                  style: Theme.of(context).textTheme.headlineLarge,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Seu cadastro foi recebido! A administração do ateliê irá revisar e aprovar sua conta em breve.',
+                  'Seu cadastro foi recebido! Nossa curadoria irá revisar e aprovar sua conta em breve.',
                   style: Theme.of(context).textTheme.bodyLarge,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  'Você receberá uma notificação quando sua conta for ativada.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  textAlign: TextAlign.center,
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: FavoColors.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.mail_outline,
+                          size: 18, color: FavoColors.onSurfaceVariant),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Você receberá uma notificação quando sua conta for ativada.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 40),
                 TextButton.icon(
                   onPressed: () async {
                     await ref.read(authServiceProvider).signOut();
                     if (context.mounted) context.go('/login');
                   },
-                  icon: const Icon(Icons.logout),
+                  icon: const Icon(Icons.logout, size: 18),
                   label: const Text('Sair'),
                 ),
               ],

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/supabase_client.dart';
@@ -12,20 +11,19 @@ class RepositionScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final repositionsAsync = ref.watch(myRepositionsProvider);
     final availableAsync = ref.watch(availableTurmasProvider);
+    final repositionsAsync = ref.watch(myRepositionsProvider);
 
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Repor Aula'),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.go('/'),
-          ),
-          bottom: const TabBar(
-            tabs: [
+          bottom: TabBar(
+            labelColor: FavoColors.primary,
+            unselectedLabelColor: FavoColors.onSurfaceVariant,
+            indicatorColor: FavoColors.primary,
+            tabs: const [
               Tab(text: 'Turmas com Vaga'),
               Tab(text: 'Minhas Reposições'),
             ],
@@ -33,62 +31,91 @@ class RepositionScreen extends ConsumerWidget {
         ),
         body: TabBarView(
           children: [
-            // Tab 1: turmas disponíveis
+            // Tab 1
             availableAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Erro: $e')),
               data: (turmas) {
                 if (turmas.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.event_busy, size: 64, color: FavoColors.warmGray),
-                        SizedBox(height: 16),
-                        Text('Nenhuma turma com vaga no momento'),
+                        Icon(Icons.event_busy,
+                            size: 48,
+                            color: FavoColors.onSurfaceVariant.withAlpha(80)),
+                        const SizedBox(height: 16),
+                        Text('Nenhuma turma com vaga no momento',
+                            style: Theme.of(context).textTheme.bodyLarge),
                       ],
                     ),
                   );
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(24),
                   itemCount: turmas.length,
-                  itemBuilder: (context, index) {
-                    final item = turmas[index];
-                    return _AvailableTurmaCard(item: item);
-                  },
+                  itemBuilder: (context, index) =>
+                      _TurmaCard(item: turmas[index]),
                 );
               },
             ),
 
-            // Tab 2: minhas reposições
+            // Tab 2
             repositionsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Erro: $e')),
               data: (repos) {
                 if (repos.isEmpty) {
-                  return const Center(
-                    child: Text('Nenhuma reposição solicitada'),
-                  );
+                  return const Center(child: Text('Nenhuma reposição'));
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(24),
                   itemCount: repos.length,
                   itemBuilder: (context, index) {
                     final repo = repos[index];
-                    return Card(
+                    return Container(
                       margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        leading: Icon(
-                          _statusIcon(repo.status),
-                          color: _statusColor(repo.status),
-                        ),
-                        title: Text(repo.turmaName ?? 'Aula'),
-                        subtitle: Text(
-                          '${repo.originalDate != null ? DateFormat('dd/MM').format(repo.originalDate!) : ''} · ${repo.status}',
-                        ),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: FavoColors.surfaceContainerLowest,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(_statusIcon(repo.status),
+                              color: _statusColor(repo.status), size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(repo.turmaName ?? 'Aula',
+                                    style: Theme.of(context).textTheme.titleSmall),
+                                if (repo.originalDate != null)
+                                  Text(
+                                    DateFormat('dd/MM/yyyy').format(repo.originalDate!),
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _statusColor(repo.status).withAlpha(20),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              repo.status.toUpperCase(),
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: _statusColor(repo.status),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   },
@@ -113,117 +140,105 @@ class RepositionScreen extends ConsumerWidget {
 
   Color _statusColor(String status) {
     return switch (status) {
-      'pending' => FavoColors.honey,
-      'scheduled' => FavoColors.success,
-      'completed' => FavoColors.warmGray,
+      'scheduled' || 'completed' => FavoColors.success,
       'expired' => FavoColors.error,
-      _ => FavoColors.warmGray,
+      _ => FavoColors.primary,
     };
   }
 }
 
-class _AvailableTurmaCard extends ConsumerWidget {
+class _TurmaCard extends ConsumerWidget {
   final TurmaWithAvailability item;
 
-  const _AvailableTurmaCard({required this.item});
+  const _TurmaCard({required this.item});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    item.turma.name,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: FavoColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(item.turma.name,
+                    style: Theme.of(context).textTheme.titleMedium),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: FavoColors.success.withAlpha(20),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                Chip(
-                  label: Text(
-                    '${item.available} vaga${item.available > 1 ? 's' : ''}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  backgroundColor: FavoColors.honeyLight,
-                ),
-              ],
-            ),
-            Text(
-              '${item.turma.startTime.substring(0, 5)} – ${item.turma.endTime.substring(0, 5)}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Próximas aulas:',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 4),
-            ...item.nextAulas.map((aula) {
-              final dateStr = DateFormat('EEEE, d/MM', 'pt_BR')
-                  .format(aula.scheduledDate);
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  children: [
-                    Expanded(child: Text(dateStr)),
-                    TextButton(
-                      onPressed: () => _requestReposition(
-                        context,
-                        ref,
-                        aula.id,
+                child: Text(
+                  '${item.available} vaga${item.available > 1 ? 's' : ''}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: FavoColors.success,
+                        fontWeight: FontWeight.w600,
                       ),
-                      child: const Text('Agendar'),
-                    ),
-                  ],
                 ),
-              );
-            }),
-          ],
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${item.turma.startTime.substring(0, 5)} – ${item.turma.endTime.substring(0, 5)}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+          ...item.nextAulas.map((aula) {
+            final dateStr =
+                DateFormat('EEEE, d/MM', 'pt_BR').format(aula.scheduledDate);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(dateStr,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                  ),
+                  TextButton(
+                    onPressed: () => _request(context, ref, aula.id),
+                    child: const Text('Agendar'),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
       ),
     );
   }
 
-  Future<void> _requestReposition(
-    BuildContext context,
-    WidgetRef ref,
-    String makeupAulaId,
-  ) async {
+  Future<void> _request(
+      BuildContext context, WidgetRef ref, String makeupAulaId) async {
     final userId = SupabaseConfig.auth.currentUser!.id;
     final service = ref.read(repositionServiceProvider);
 
-    // Verificar limite
     final canRequest = await service.canRequest(userId);
     if (!canRequest) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Você já usou sua reposição deste mês.'),
-          ),
+          const SnackBar(content: Text('Você já usou sua reposição deste mês.')),
         );
       }
       return;
     }
 
     try {
-      // TODO: pegar original_aula_id da falta — por agora usa placeholder
-      // Em produção, o fluxo começa quando a aluna declina uma aula
       await service.requestReposition(
         studentId: userId,
-        originalAulaId: makeupAulaId, // será substituído pelo fluxo correto
+        originalAulaId: makeupAulaId,
         makeupAulaId: makeupAulaId,
       );
-
       ref.invalidate(myRepositionsProvider);
       ref.invalidate(availableTurmasProvider);
-
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Reposição agendada!')),

@@ -26,7 +26,6 @@ class _AulaDetailScreenState extends ConsumerState<AulaDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Detalhes da Aula'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -36,9 +35,8 @@ class _AulaDetailScreenState extends ConsumerState<AulaDetailScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Erro: $error')),
         data: (aulas) {
-          final item = aulas
-              .where((a) => a.aula.id == widget.aulaId)
-              .firstOrNull;
+          final item =
+              aulas.where((a) => a.aula.id == widget.aulaId).firstOrNull;
 
           if (item == null) {
             return const Center(child: Text('Aula não encontrada'));
@@ -48,170 +46,120 @@ class _AulaDetailScreenState extends ConsumerState<AulaDetailScreen> {
           final dateStr = DateFormat('EEEE, d MMMM yyyy', 'pt_BR')
               .format(item.aula.scheduledDate);
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Turma name
-                Text(
-                  item.turma.name,
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-                const SizedBox(height: 8),
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            children: [
+              // Turma
+              Text(item.turma.name,
+                  style: Theme.of(context).textTheme.headlineLarge),
+              const SizedBox(height: 16),
 
-                // Date
-                Row(
-                  children: [
-                    const Icon(Icons.calendar_today,
-                        size: 18, color: FavoColors.warmGray),
-                    const SizedBox(width: 8),
-                    Text(dateStr,
-                        style: Theme.of(context).textTheme.bodyLarge),
-                  ],
-                ),
-                const SizedBox(height: 4),
+              // Info rows
+              _InfoRow(
+                icon: Icons.calendar_today_outlined,
+                text: dateStr,
+              ),
+              const SizedBox(height: 8),
+              _InfoRow(
+                icon: Icons.access_time,
+                text:
+                    '${item.aula.startTime.substring(0, 5)} – ${item.aula.endTime.substring(0, 5)}',
+              ),
+              const SizedBox(height: 8),
+              _InfoRow(
+                icon: Icons.people_outline,
+                text: 'Capacidade: ${item.turma.capacity} alunas',
+              ),
 
-                // Time
-                Row(
-                  children: [
-                    const Icon(Icons.access_time,
-                        size: 18, color: FavoColors.warmGray),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${item.aula.startTime.substring(0, 5)} – ${item.aula.endTime.substring(0, 5)}',
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  ],
-                ),
-
-                if (item.aula.notes != null) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    item.aula.notes!,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-
-                const SizedBox(height: 32),
-                const Divider(),
+              if (item.aula.notes != null) ...[
                 const SizedBox(height: 16),
-
-                // Confirmação
-                Text(
-                  'Sua presença',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 16),
-
-                if (confirmacao == ConfirmationStatus.confirmed)
-                  _buildStatusBanner(
-                    context,
-                    icon: Icons.check_circle,
-                    color: FavoColors.success,
-                    text: 'Presença confirmada!',
-                  )
-                else if (confirmacao == ConfirmationStatus.declined)
-                  _buildStatusBanner(
-                    context,
-                    icon: Icons.cancel,
-                    color: FavoColors.error,
-                    text: 'Você informou que não vai.',
-                  )
-                else ...[
-                  Text(
-                    'Confirme se você vai comparecer a esta aula.',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: FavoColors.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  const SizedBox(height: 16),
-                ],
-
-                // Botões
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _isLoading
-                            ? null
-                            : () => _handleConfirmation(false),
-                        icon: const Icon(Icons.close),
-                        label: const Text('Não vou'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: FavoColors.error,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _isLoading
-                            ? null
-                            : () => _handleConfirmation(true),
-                        icon: const Icon(Icons.check),
-                        label: const Text('Vou!'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                      ),
-                    ),
-                  ],
+                  child: Text(item.aula.notes!,
+                      style: Theme.of(context).textTheme.bodyMedium),
                 ),
               ],
-            ),
+
+              const SizedBox(height: 32),
+
+              // Status
+              Text('Sua presença',
+                  style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
+
+              if (confirmacao == ConfirmationStatus.confirmed)
+                _StatusBanner(
+                  icon: Icons.check_circle,
+                  color: FavoColors.success,
+                  text: 'Presença confirmada!',
+                )
+              else if (confirmacao == ConfirmationStatus.declined)
+                _StatusBanner(
+                  icon: Icons.cancel,
+                  color: FavoColors.error,
+                  text: 'Você informou que não vai.',
+                )
+              else
+                Text(
+                  'Confirme se você vai comparecer a esta aula.',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+
+              const SizedBox(height: 20),
+
+              // Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 50,
+                      child: OutlinedButton(
+                        onPressed:
+                            _isLoading ? null : () => _confirm(false),
+                        child: const Text('Não Vou'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed:
+                            _isLoading ? null : () => _confirm(true),
+                        child: const Text('Vou!'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           );
         },
       ),
     );
   }
 
-  Widget _buildStatusBanner(
-    BuildContext context, {
-    required IconData icon,
-    required Color color,
-    required String text,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: color.withAlpha(25),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color),
-          const SizedBox(width: 12),
-          Text(text,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyLarge
-                  ?.copyWith(color: color, fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _handleConfirmation(bool going) async {
+  Future<void> _confirm(bool going) async {
     setState(() => _isLoading = true);
-
     try {
       final userId = SupabaseConfig.auth.currentUser!.id;
       final service = ref.read(agendaServiceProvider);
-
       if (going) {
         await service.confirmPresenca(widget.aulaId, userId);
       } else {
         await service.declinePresenca(widget.aulaId, userId);
       }
-
       ref.invalidate(myWeekAulasProvider);
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(going ? 'Presença confirmada!' : 'Falta registrada.'),
-          ),
+              content:
+                  Text(going ? 'Presença confirmada!' : 'Falta registrada.')),
         );
       }
     } catch (e) {
@@ -223,5 +171,56 @@ class _AulaDetailScreenState extends ConsumerState<AulaDetailScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _InfoRow({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: FavoColors.onSurfaceVariant),
+        const SizedBox(width: 10),
+        Text(text, style: Theme.of(context).textTheme.bodyLarge),
+      ],
+    );
+  }
+}
+
+class _StatusBanner extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String text;
+
+  const _StatusBanner({
+    required this.icon,
+    required this.color,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withAlpha(20),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 12),
+          Text(text,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: color,
+                  )),
+        ],
+      ),
+    );
   }
 }
