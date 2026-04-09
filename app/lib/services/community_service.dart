@@ -170,11 +170,17 @@ class CommunityService {
   }
 
   Future<void> createPost(String content, {List<String>? imageUrls}) async {
-    await _client.from('community_posts').insert({
+    final data = await _client.from('community_posts').insert({
       'author_id': SupabaseConfig.auth.currentUser!.id,
       'content': content,
       'image_urls': imageUrls ?? [],
-    });
+    }).select('id').single();
+
+    // Moderação assíncrona — não bloqueia o post
+    _client.functions.invoke(
+      'moderar-post',
+      body: {'post_id': data['id'], 'content': content},
+    );
   }
 
   Future<void> toggleLike(String postId) async {
