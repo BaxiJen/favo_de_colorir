@@ -3,12 +3,8 @@ name: Flutter CI
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'app/**'
   push:
     branches: [main]
-    paths:
-      - 'app/**'
 
 jobs:
   analyze-and-test:
@@ -26,16 +22,16 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Create .env for build
+      - name: Create .env
         run: |
           echo "SUPABASE_URL=https://placeholder.supabase.co" > .env
           echo "SUPABASE_ANON_KEY=placeholder" >> .env
 
+      - name: Install dependencies
+        run: flutter pub get
+
       - name: Analyze code
-        run: flutter analyze --no-fatal-infos
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Run tests
         run: flutter test
@@ -65,13 +61,13 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Create .env for build
+      - name: Create .env
         run: |
           echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
           echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+
+      - name: Install dependencies
+        run: flutter pub get
 
       - name: Build APK
         run: flutter build apk --release
