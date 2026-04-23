@@ -234,42 +234,46 @@ class _PostCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Author
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: FavoColors.primaryContainer.withAlpha(40),
-                backgroundImage: post.authorAvatar != null
-                    ? NetworkImage(post.authorAvatar!)
-                    : null,
-                child: post.authorAvatar == null
-                    ? Text(
-                        post.authorName.isNotEmpty
-                            ? post.authorName[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                            color: FavoColors.primary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(post.authorName,
-                        style: Theme.of(context).textTheme.titleSmall),
-                    Text(
-                      DateFormat('dd MMM · HH:mm', 'pt_BR')
-                          .format(post.createdAt),
-                      style: Theme.of(context).textTheme.labelSmall,
-                    ),
-                  ],
+          InkWell(
+            onTap: () => context.push('/profile/${post.authorId}'),
+            borderRadius: BorderRadius.circular(16),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: FavoColors.primaryContainer.withAlpha(40),
+                  backgroundImage: post.authorAvatar != null
+                      ? NetworkImage(post.authorAvatar!)
+                      : null,
+                  child: post.authorAvatar == null
+                      ? Text(
+                          post.authorName.isNotEmpty
+                              ? post.authorName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                              color: FavoColors.primary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14),
+                        )
+                      : null,
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(post.authorName,
+                          style: Theme.of(context).textTheme.titleSmall),
+                      Text(
+                        DateFormat('dd MMM · HH:mm', 'pt_BR')
+                            .format(post.createdAt),
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
 
@@ -592,31 +596,37 @@ class _CommentTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: FavoColors.primaryContainer.withAlpha(40),
-            backgroundImage: c.authorAvatar != null
-                ? NetworkImage(c.authorAvatar!)
-                : null,
-            child: c.authorAvatar == null
-                ? Text(
-                    c.authorName.isNotEmpty
-                        ? c.authorName[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                        fontSize: 12,
-                        color: FavoColors.primary,
-                        fontWeight: FontWeight.bold),
-                  )
-                : null,
+          GestureDetector(
+            onTap: () => context.push('/profile/${c.authorId}'),
+            child: CircleAvatar(
+              radius: 16,
+              backgroundColor: FavoColors.primaryContainer.withAlpha(40),
+              backgroundImage: c.authorAvatar != null
+                  ? NetworkImage(c.authorAvatar!)
+                  : null,
+              child: c.authorAvatar == null
+                  ? Text(
+                      c.authorName.isNotEmpty
+                          ? c.authorName[0].toUpperCase()
+                          : '?',
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: FavoColors.primary,
+                          fontWeight: FontWeight.bold),
+                    )
+                  : null,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(c.authorName,
-                    style: Theme.of(context).textTheme.labelMedium),
+                GestureDetector(
+                  onTap: () => context.push('/profile/${c.authorId}'),
+                  child: Text(c.authorName,
+                      style: Theme.of(context).textTheme.labelMedium),
+                ),
                 if (c.content.isNotEmpty)
                   Text(c.content,
                       style: Theme.of(context).textTheme.bodyMedium),

@@ -12,6 +12,7 @@ import '../modules/auth/admin_users_screen.dart';
 import '../modules/auth/edit_profile_screen.dart';
 import '../modules/auth/notifications_screen.dart';
 import '../modules/auth/profile_screen.dart';
+import '../modules/auth/public_profile_screen.dart';
 import '../modules/agenda/home_screen.dart';
 import '../modules/agenda/my_agenda_screen.dart';
 import '../modules/agenda/aula_detail_screen.dart';
@@ -160,6 +161,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/profile/edit',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: '/profile/:userId',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) =>
+            PublicProfileScreen(userId: state.pathParameters['userId']!),
       ),
       GoRoute(
         path: '/community',
