@@ -94,13 +94,20 @@ import Button from './ui/Button.astro';
     z-index: 2;
   }
 
-  .hero__eyebrow { color: var(--on-surface-muted); }
+  .hero__eyebrow { color: var(--on-surface-muted); white-space: normal; }
 
   .hero__title {
     font-size: var(--fs-h1);
-    line-height: 0.96;
+    line-height: 1.05;
     letter-spacing: var(--tracking-display);
     margin-block-start: var(--s-3);
+  }
+
+  @media (max-width: 480px) {
+    .hero__title {
+      font-size: clamp(2.25rem, 7vw, 2.75rem);
+      line-height: 1.1;
+    }
   }
 
   .hero__title span {
