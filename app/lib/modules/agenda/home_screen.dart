@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/supabase_client.dart';
 import '../../core/theme.dart';
@@ -272,7 +273,7 @@ class _NextAulaCard extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  'Hoje',
+                  _whenLabel(item.aula.scheduledDate),
                   style: Theme.of(context)
                       .textTheme
                       .labelSmall
@@ -347,6 +348,19 @@ class _NextAulaCard extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  String _whenLabel(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(date.year, date.month, date.day);
+    final diff = d.difference(today).inDays;
+    if (diff == 0) return 'Hoje';
+    if (diff == 1) return 'Amanhã';
+    if (diff > 1 && diff < 7) {
+      return DateFormat('EEEE', 'pt_BR').format(d).toUpperCase();
+    }
+    return DateFormat('dd/MM').format(d);
   }
 }
 

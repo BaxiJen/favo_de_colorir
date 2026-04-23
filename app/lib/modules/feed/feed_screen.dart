@@ -321,6 +321,22 @@ class _FeedCard extends ConsumerWidget {
                       .read(feedServiceProvider)
                       .getPhotoUrl(entry.photos!.first.storagePath),
                   fit: BoxFit.cover,
+                  loadingBuilder: (_, child, progress) {
+                    if (progress == null) return child;
+                    return Container(
+                      color: FavoColors.surfaceContainerLow,
+                      child: const Center(
+                          child:
+                              CircularProgressIndicator(strokeWidth: 2)),
+                    );
+                  },
+                  errorBuilder: (_, _, _) => Container(
+                    color: FavoColors.surfaceContainerLow,
+                    child: const Center(
+                      child: Icon(Icons.broken_image_outlined,
+                          color: FavoColors.outline, size: 36),
+                    ),
+                  ),
                 ),
               ),
             ),
