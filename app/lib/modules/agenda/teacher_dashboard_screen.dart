@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/error_handler.dart';
 import '../../core/supabase_client.dart';
@@ -170,10 +171,34 @@ class _TurmaDayCard extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
 
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          aula.presencas.isEmpty
+                              ? ''
+                              : '${aula.presencas.length} pessoa(s) na lista',
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                      ),
+                      if (aula.presencas.isNotEmpty)
+                        TextButton.icon(
+                          onPressed: () => _markAllAbsent(context, ref, aula.aula.id),
+                          icon: const Icon(Icons.event_busy_outlined, size: 16),
+                          label: const Text('Todos faltaram'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: FavoColors.error,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
                   ...aula.presencas.map((p) => _AttendanceRow(
                         aulaId: aula.aula.id,
                         presenca: p.presenca,
                         studentName: p.studentName,
+                        makeupFromTurmaName: p.makeupFromTurmaName,
+                        makeupFromDate: p.makeupFromDate,
                       )),
                 ],
               );
@@ -186,15 +211,54 @@ class _TurmaDayCard extends ConsumerWidget {
 
 }
 
+Future<void> _markAllAbsent(
+    BuildContext context, WidgetRef ref, String aulaId) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Todos faltaram?'),
+      content: const Text(
+          'Marca TODAS as pessoas dessa aula como falta. Use quando a aula não aconteceu (ex: imprevisto, imprevisto de última hora). Se foi feriado planejado, prefira "Cancelar aula" no detalhe da aula pra criar crédito automático.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          style: ElevatedButton.styleFrom(backgroundColor: FavoColors.error),
+          child: const Text('Todos faltaram'),
+        ),
+      ],
+    ),
+  );
+  if (ok != true) return;
+  try {
+    await ref.read(agendaServiceProvider).markAllAbsent(aulaId);
+    ref.invalidate(turmaAulasDoDiaProvider);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Presenças marcadas como faltas.')),
+      );
+    }
+  } catch (e) {
+    if (context.mounted) showErrorSnackBar(context, e);
+  }
+}
+
 class _AttendanceRow extends ConsumerStatefulWidget {
   final String aulaId;
   final Presenca presenca;
   final String studentName;
+  final String? makeupFromTurmaName;
+  final DateTime? makeupFromDate;
 
   const _AttendanceRow({
     required this.aulaId,
     required this.presenca,
     required this.studentName,
+    this.makeupFromTurmaName,
+    this.makeupFromDate,
   });
 
   @override
@@ -242,8 +306,49 @@ class _AttendanceRowState extends ConsumerState<_AttendanceRow> {
       child: Row(
         children: [
           Expanded(
-            child: Text(widget.studentName,
-                style: Theme.of(context).textTheme.bodyMedium),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(widget.studentName,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                    if (widget.presenca.isMakeup) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: FavoColors.secondary.withAlpha(40),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'REPOSIÇÃO',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: FavoColors.secondary,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (widget.presenca.isMakeup &&
+                    widget.makeupFromTurmaName != null)
+                  Text(
+                    'de ${widget.makeupFromTurmaName}'
+                    '${widget.makeupFromDate != null ? " · ${DateFormat('dd/MM').format(widget.makeupFromDate!)}" : ""}',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: FavoColors.onSurfaceVariant,
+                        ),
+                  ),
+              ],
+            ),
           ),
           _AttendanceChip(
             icon: Icons.check,

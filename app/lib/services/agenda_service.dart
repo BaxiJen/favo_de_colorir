@@ -71,10 +71,16 @@ class AulaWithPresencas {
 class PresencaWithProfile {
   final Presenca presenca;
   final String studentName;
+  /// Se essa presença é reposição (is_makeup=true), nome da turma original.
+  final String? makeupFromTurmaName;
+  /// Data da aula original da qual veio a reposição (pra mostrar "de 15/04").
+  final DateTime? makeupFromDate;
 
   const PresencaWithProfile({
     required this.presenca,
     required this.studentName,
+    this.makeupFromTurmaName,
+    this.makeupFromDate,
   });
 }
 
@@ -225,11 +231,41 @@ class AgendaService {
           .select('*, profiles:student_id(full_name)')
           .eq('aula_id', aula.id);
 
+      // Pra presencas makeup: fetch info da turma/aula originais
+      final makeupPresencaIds = presencasData
+          .where((p) => p['is_makeup'] == true)
+          .map((p) => p['student_id'] as String)
+          .toList();
+
+      final Map<String, Map<String, dynamic>> makeupInfo = {};
+      if (makeupPresencaIds.isNotEmpty) {
+        final repData = await _client
+            .from('reposicoes')
+            .select(
+                '*, original_aula:original_aula_id(scheduled_date, turma:turma_id(name))')
+            .eq('makeup_aula_id', aula.id)
+            .inFilter('student_id', makeupPresencaIds);
+        for (final r in repData) {
+          final studentId = r['student_id'] as String;
+          final orig = r['original_aula'] as Map<String, dynamic>?;
+          final turma = orig?['turma'] as Map<String, dynamic>?;
+          makeupInfo[studentId] = {
+            'turma_name': turma?['name'] as String?,
+            'date': orig?['scheduled_date'] as String?,
+          };
+        }
+      }
+
       final presencas = presencasData.map((p) {
         final profileData = p['profiles'] as Map<String, dynamic>?;
+        final info = makeupInfo[p['student_id']];
         return PresencaWithProfile(
           presenca: Presenca.fromJson(p),
           studentName: profileData?['full_name'] as String? ?? '',
+          makeupFromTurmaName: info?['turma_name'] as String?,
+          makeupFromDate: info?['date'] != null
+              ? DateTime.parse(info!['date'] as String)
+              : null,
         );
       }).toList();
 
@@ -329,17 +365,38 @@ class AgendaService {
     };
   }
 
-  /// Chamada: marca attendance_status de uma presença.
+  /// Chamada: marca attendance_status de uma presença. Se a presença for
+  /// reposição (is_makeup=true) e o status for attended/late, também
+  /// completa a reposição associada automaticamente.
   Future<void> markAttendance({
     required String presencaId,
     required AttendanceStatus status,
   }) async {
+    final didAttend = status == AttendanceStatus.attended ||
+        status == AttendanceStatus.late;
+
     await _client.from('presencas').update({
       'attendance_status': Presenca.attendanceToString(status),
-      // manter 'attended' pra compatibilidade com views antigas
-      'attended': status == AttendanceStatus.attended ||
-          status == AttendanceStatus.late,
+      'attended': didAttend,
     }).eq('id', presencaId);
+
+    // Se era reposição e compareceu, marca reposicoes.status=completed
+    if (didAttend) {
+      try {
+        final presenca = await _client
+            .from('presencas')
+            .select('aula_id, student_id, is_makeup')
+            .eq('id', presencaId)
+            .single();
+        if (presenca['is_makeup'] == true) {
+          await _client
+              .from('reposicoes')
+              .update({'status': 'completed'})
+              .eq('makeup_aula_id', presenca['aula_id'])
+              .eq('student_id', presenca['student_id']);
+        }
+      } catch (_) {}
+    }
   }
 
   /// Bulk: marca todas as presenças de uma aula como ausentes
