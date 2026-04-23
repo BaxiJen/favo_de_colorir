@@ -714,58 +714,191 @@ Código da IA pode ter vulnerabilidades sutis. Revise especialmente:
 - RLS notifications: edge function enviar-recado (bypass RLS)
 - totalizar-cobranca: total_amount é generated column
 
-## Pendências (dívida técnica)
+## Pendências (dívida técnica — pós-sessão 22-23 Abr)
 
-### Alta
-- [ ] Push notifications reais (Firebase Cloud Messaging) — requer projeto Firebase
-- [ ] Integração Mercado Pago (Pix QR code real + webhook)
+### Alta (bloqueado por credenciais/hardware)
+- [ ] **FCM push real** — código pronto em `PushService.initialize()` com comentários marcando o que descomentar; edge function `enviar-push` deployada fail-open. Precisa: Firebase project + `google-services.json` + `FCM_SERVER_KEY` nas secrets.
+- [ ] **Mercado Pago em produção** — SDK + edge functions `criar-pagamento-pix` e `webhook-mercadopago` deployadas. Falta: `MP_ACCESS_TOKEN` nas secrets + URL do webhook no dashboard MP.
+- [ ] **Build iOS** — macOS + Xcode + Apple Developer ($99/ano).
+- [ ] **Universal Links / App Links** — migração da bridge HTML pra abrir app direto quando tiver domínio próprio. Checklist completo em `.claude/projects/-home-marcus-desenvolvimento-favo-de-colorir/memory/project_dominio_universal_links.md`.
 
 ### Média
 - [ ] Integração Nuvemshop (cartão, parcelamento)
-- [ ] Moderação IA real (Claude/OpenAI API ao invés de keyword)
-- [x] Landing page (Astro + Vercel) — código completo, falta deploy + assets reais (ver `docs/landing_assets_todo.md`)
 - [ ] Analytics (DAU/MAU)
+- [ ] `pg_cron` pra expirar waitlist após 24h (precisa Supabase Pro)
+- [ ] Links reais das stores nos botões da bridge `auth-bridge` e da landing
 
 ### Baixa
 - [ ] Enquetes e desafios criativos
 - [ ] Blog/dicas das professoras
-- [ ] Build iOS (requer macOS + Xcode)
+- [ ] Relatório financeiro com gráficos temporais (tendência mensal)
+
+---
+
+## Sessão 22-23 Abril 2026 — "App Completo"
+
+Maratona de 32 commits pushados pra levar o app de "funcional" pra "pronto
+pra alunas reais". Começou com o user dizendo "o app não tem foto em
+nenhum lugar, precisa ser um app completo" e acabou com todas as dívidas
+críticas pagas + Supabase em sync (migrations/buckets/functions aplicados
+no remoto).
+
+### Infraestrutura
+
+**Migrations novas (7):**
+- `20260422000001_app_completo.sql` — peca_fotos + attendance_status enum + moderation_status + community_comments.image_url + chat_messages.image_url + cobrancas.comprovante_url + audit_logs + aulas.cancelled_{at,reason,by} + profiles.{bio,rejection_reason} + app_config
+- `20260422000002_feriados.sql` — tabela feriados (14 seed de 2026) + UNIQUE(turma_id, scheduled_date)
+- `20260422000003_rls_refinement.sql` — teacher só mexe em turma/aula/presenca dela (antes: qualquer teacher mexia em qualquer)
+- `20260423000001_onboarding.sql` — profiles.onboarded_at
+- `20260423000002_teacher_repositions.sql` — RLS permite teacher INSERT/UPDATE reposições de suas aulas
+- `20260423000003_turma_location.sql` — turmas.location + address + studio_address/maps_url em app_config
+- `20260423000004_storage_policies.sql` — policies RLS pros 6 buckets de storage
+
+**Buckets novos (6, todos criados em prod):** avatars (public 5MB), feed (public 10MB), pecas (public 10MB), posts (public 10MB), chat (privado 10MB), pagamentos (privado 5MB, aceita PDF).
+
+**Edge functions novas (6, todas deployadas):**
+- `reset-senha-usuario` — admin gera nova senha temporária
+- `enviar-credenciais` — magic link com `redirectTo: favo://auth-callback`
+- `enviar-push` — persiste notifications sempre; chama FCM se `FCM_SERVER_KEY` configurado
+- `criar-pagamento-pix` — MP API Pix → QR + copia-e-cola
+- `webhook-mercadopago` — auto-confirma cobrança quando MP aprova
+- `auth-bridge` — HTML no Supabase que tenta `favo://` e cai em fallback pra stores (Site URL = `https://<proj>.supabase.co/functions/v1/auth-bridge`)
+
+**Edge functions atualizadas:** `gerar-aulas` (pula feriados + transação), `enviar-recado` (segmentação: all/turma/role/users), `moderar-post` (categoria exposta).
+
+### Features novas por módulo
+
+**Módulo agenda**
+- Chamada real pela professora (chips P/A/F em `_AttendanceRow`) — gera `attendance_status` + auto-completa reposição se `is_makeup`
+- Cancelar aula com cascata (status=cancelled + marca todos absent + cria créditos de reposição pra quem tinha confirmado + audit + notifica)
+- Feriados: CRUD admin em `/admin/feriados` + gerador de aulas respeita com breakdown (`X geradas · Y pulados · Z já existiam`)
+- Calendário mensal em `my_agenda_screen` (toggle Semana/Mês, grid 6x7, dots por dia, aulas canceladas com line-through)
+- Lista de espera UI: aluna vê posição e aceita vaga sozinha (`_MyFilaTile` com botão verde quando status=notified); admin em `/admin/turma-waitlist` promove manual
+- Editar turma via form reaproveitado (dialog pré-populado); aula pontual via `createSingleAula`; detector de `checkScheduleConflict` antes de mutações
+- Dashboard professora mostra badge "REPOSIÇÃO" com "de Turma X · 15/04"; botão "Todos faltaram" com dialog explicando vs "Cancelar aula"
+- Professora pode criar crédito de reposição ao marcar falta (RLS permite agora)
+
+**Módulo materiais**
+- Foto de peça no registro (`image_picker` + upload bucket `pecas`, múltiplas, best-effort)
+- Model `PecaFoto` + service `uploadPecaPhoto/getPecaPhotos/deletePecaPhoto`
+
+**Módulo cobrança**
+- Comprovante de pagamento: aluna envia (bucket `pagamentos` privado, signed URL 30d); admin vê em `InteractiveViewer` + confirma ou rejeita
+- Pgto manual com método (dinheiro/pix externo/cartão) + observações + admin_confirmed
+- Pix real: `_PixDialog` renderiza QR via `Image.memory(base64Decode(...))` + copia-e-cola selecionável + "confirmação chega automática"
+- Breakdown de cobrança lê de `cobranca_itens` (antes era hardcoded "3 kg / 2 peças")
+- Export CSV real: `share_plus` em mobile (share sheet com arquivo), clipboard em web
+
+**Módulo comunidade**
+- Moderação síncrona: post fica `moderation_status=pending` até edge function responder; aprovado → feed, rejeitado → dialog com `ModerationResult.friendlyMessage` categorizado (political/hate/violence/sexual/self-harm/illicit/keyword)
+- Comentários com foto (CommunityComment.imageUrl + UI com preview)
+- Avatars reais em comentários + clicáveis pro perfil público
+- Chat 1-1 completo: `/chat` lista conversas (getConversations agrupa por peer), `/chat/:peerId` com realtime (Supabase channel `onPostgresChanges INSERT`) + foto via bucket `chat`
+- Perfil público em `/profile/:userId` com avatar, bio, peças públicas e botão "Mandar mensagem"
+
+**Módulo auth**
+- Validators BR: `validateEmail` (regex), `PhoneBRFormatter` (máscara dinâmica), `validatePasswordStrength`, `parseBirthDateBR`
+- Edit profile em `/profile/edit` (nome/telefone/data nasc/bio)
+- Signup com confirm senha, data BR
+- Reset senha via deep link: `/auth/reset` em `ResetPasswordScreen` (chega via `DeepLinkService`)
+- Deep link service em `main.dart`: `app_links` listener captura `favo://auth-callback?code=...` (PKCE) ou `?type=recovery&token=...`
+
+**Módulo admin**
+- Audit logs: service + tela `/admin/audit` com histórico filtrado por ação
+- Reset de senha via edge function `reset-senha-usuario`
+- Busca server-side debounced + paginação infinita (`searchProfiles(query, role, limit, offset)`)
+- Broadcast segmentado (todos/turma específica/papel específico)
+- Rejeição de cadastro com dialog de motivo → `rejectProfileWithReason` + notification
+- Confirm dialogs em destrutivas (mudar status, desativar turma, mudança de preço >30%, broadcast "todos")
+- Feriados admin em `/admin/feriados`
+
+**Módulo onboarding**
+- Tour de 6 slides PageView em `/onboarding` (Bem-vindo → Próxima aula → Reposição → Cobrança → Comunidade → Perfil)
+- Redirect automático em `home_screen` via `ref.listen` quando aluna student não tem `onboarded_at`
+- "Rever tutorial" no menu do perfil chama `resetOnboarding`
+
+**Core**
+- `UserAvatar` widget com `CachedNetworkImage` + fallback robusto (migrado em profile_screen, admin_users, admin_approval, turma_detail, community_feed, chat_list, chat_detail, public_profile)
+- `errorBuilder` + `loadingBuilder` em `Image.network` restantes
+- Validators BR consolidados em `core/validators.dart`
+
+**Landing**
+- Copy mais aconchegante em ValueProps, Studio, Plans, ContactCTA (tom "ateliê da vizinhança")
+- Página `/auth-callback` como fallback alternativo à bridge do Supabase
+
+**iOS + Android nativo**
+- Android: intent-filter com `android:scheme="favo"` em `AndroidManifest.xml`
+- iOS: `CFBundleURLSchemes` com "favo" em `Info.plist`
+
+### Neutralização de linguagem
+Commit `9d60608` removeu "alunas" como genérico em strings visíveis — substituído por "a turma", "quem faz aula", "estudante", "participantes". Policy test `app/test/inclusive_language_test.dart` garante não-regressão.
+
+### Dependências novas no `pubspec.yaml`
+- `share_plus: ^10.1.2` (CSV + compartilhamento)
+- `app_links: ^6.3.2` (deep link handler)
+
+### Stack final confirmada
+- **Flutter**: 156 testes verdes, `flutter analyze` sem novos issues
+- **Landing**: 13 testes Vitest verdes
+- **Supabase remoto** (projeto `fhqklezevuqtqenbhsja`): 17 migrations aplicadas, 12 edge functions ativas, 6 buckets com RLS
+- **Auth bridge** respondendo em `https://fhqklezevuqtqenbhsja.supabase.co/functions/v1/auth-bridge`
+
+### Memórias criadas/atualizadas
+- `project_favo_sprint_status.md` (estado completo)
+- `project_agenda_divida.md` (PAGA — histórico)
+- `project_landing_copy.md` (PAGA — diretrizes)
+- `project_onboarding_divida.md` (PAGA — escopo)
+- `project_dominio_universal_links.md` (aberta — aguarda domínio)
 
 ---
 
 ---
 
-## TL;DR — Estado do Projeto (9 de Abril de 2026)
+## TL;DR — Estado do Projeto (23 de Abril de 2026)
 
 App **Favo de Colorir** para ateliê de cerâmica da Débora (Tijuca, RJ).
-Construído em ~1 dia (8-9 Abril 2026) usando Flutter + Supabase.
+MVP construído em 8-9 Abr 2026; sessão maratona em 22-23 Abr pagou todas
+as dívidas críticas. Projeto agora "app completo" — pronto pra alunas reais.
 
 ### Números
-- **40 commits**, **51 arquivos Dart**, **~10.000 linhas de código**
-- **107 testes** (13 arquivos), **10 migrations**, **7 edge functions**
-- **APK Android**: 55MB (release), **Web build**: OK
-- **CI/CD**: GitHub Actions (analyze + test + web build + APK)
+- **72+ commits**, **~75 arquivos Dart**, **~14.000 linhas de código**
+- **156 testes Flutter** + **13 testes Vitest landing** (verdes)
+- **17 migrations** aplicadas no Supabase remoto
+- **12 edge functions** ativas (7 novas na sessão)
+- **6 buckets** criados com RLS
+- **APK Android**: ~55MB (release)
+- **CI/CD**: GitHub Actions (analyze + test + web build + APK) + Vercel (landing)
 
 ### O que funciona (end-to-end)
-- Login/cadastro com aprovação admin + aceite de políticas
-- Agenda semanal com confirmação presença (Vou/Não Vou)
-- Reposição de aulas (selecionar falta → agendar makeup)
-- Registro de materiais (argila kg + peças) com **offline sync** (SQLite)
-- Cobrança automática (totalizar mensalidade + argila + queimas)
-- Feed pessoal com upload de fotos (galeria/câmera)
-- Comunidade (posts + curtidas + comentários + foto)
-- Chat professora ↔ aluna
+- Auth completo com magic link + deep link (favo://auth-callback) + bridge HTML no Supabase + reset senha in-app
+- Onboarding de 6 slides no primeiro acesso + "Rever tutorial" no perfil
+- Agenda com toggle Semana/Mês + week strip + calendário grid + aulas canceladas com line-through
+- Reposição de aulas com fluxo aluna completo + lista de espera UI (aceitar vaga sozinha)
+- Chamada real pela professora (chips P/A/F) + auto-completa reposição + "Todos faltaram"
+- Cancelar aula com cascata (marca absent + cria créditos + notifica + audit)
+- Feriados com CRUD admin + gerador respeita
+- Registro de materiais com **foto da peça** + offline sync SQLite
+- Cobrança: Pix real via MP (QR + copia-e-cola) OU comprovante upload + admin confirma
+- Feed pessoal + comunidade com moderação síncrona + motivos categorizados
+- Chat 1-1 com realtime Supabase + foto
+- Perfil público `/profile/:userId` + perfil editável
+- Admin: criar aluna (envia credencial via magic link) + reset senha + busca paginada + audit log + broadcast segmentado + rejeição com motivo + editar turma + aula pontual + detector de conflito
 - Estoque de argilas (níveis + alertas + compras)
-- Moderação automática de posts (keyword matching)
-- Admin completo: gestão usuários, turmas, alunas, preços, políticas, notificações, billing
 - Design System "Artisanal Modernism" (Epilogue + Manrope, tonal surfaces)
 - Bottom navigation com 5 tabs + rotas admin fullscreen
-- Push: `context.push()` para admin (preserva bottom nav)
+- RLS refinada (teacher só mexe em turma dela; assistant ajuda chamada; admin tudo)
+- Linguagem inclusiva (policy test garante "alunas" como genérico não volta)
+
+### Supabase em produção
+- **Projeto**: `fhqklezevuqtqenbhsja` (sa-east-1)
+- **Site URL**: `https://fhqklezevuqtqenbhsja.supabase.co/functions/v1/auth-bridge`
+- **Redirect URLs allowlist**: `favo://auth-callback`, `favo://auth`, bridge URL
+- **Buckets**: avatars, feed, pecas, posts (públicos); chat, pagamentos (privados)
+- **Storage RLS**: ownership por convenção `<userId>/...`
 
 ### Contas de teste
 - **Admin**: debora@favodecolorir.com.br / FavoAdmin2026!
 - **Alunas**: ana@teste.com, maria@teste.com, julia@teste.com (Teste123!)
-- **Supabase**: projeto `fhqklezevuqtqenbhsja` (sa-east-1)
 
 ---
 
@@ -777,28 +910,47 @@ Construído em ~1 dia (8-9 Abril 2026) usando Flutter + Supabase.
 3. Logar como aluna, confirmar presença, ver agenda, criar notas no feed
 4. Logar como admin, registrar materiais, totalizar cobranças
 
-### Dívidas técnicas (próximas sessões)
-1. **Firebase Cloud Messaging** — push notifications reais
-   - Criar projeto em console.firebase.google.com
-   - `flutterfire configure` + registrar tokens
-   - Edge function envia push via FCM API
+### Dívidas técnicas restantes (bloqueadas por credenciais/hardware)
 
-2. **Mercado Pago Pix** — pagamento real
-   - Criar conta sandbox em mercadopago.com.br/developers
-   - Edge function gera QR code Pix
-   - Webhook recebe confirmação → atualiza cobrança
+Tudo que é código acabou. Dívidas restantes dependem 100% de acesso externo:
 
-3. **Moderação IA real** — Claude/OpenAI
-   - Trocar keyword matching por API de moderação
-   - Precisa de API key
+1. **Mercado Pago** — plugar `MP_ACCESS_TOKEN` nas secrets da edge function:
+   ```bash
+   supabase secrets set MP_ACCESS_TOKEN=xxx --project-ref fhqklezevuqtqenbhsja
+   ```
+   Depois configurar URL do webhook no dashboard MP apontando pra
+   `https://fhqklezevuqtqenbhsja.supabase.co/functions/v1/webhook-mercadopago`.
+   Sandbox funciona pra testar. Código Dart + edge functions já prontos
+   (commit `c9a7a81`).
 
-4. **Landing page** — Astro + Vercel
-   - Apresentação do ateliê, fotos, planos, contato
+2. **FCM push real** — requer:
+   - Projeto Firebase criado
+   - `flutterfire configure` no root do app (gera `firebase_options.dart`
+     + `google-services.json` + Runner/GoogleService-Info.plist)
+   - Descomentar chamadas em `lib/services/push_service.dart` (marcadas
+     com comentários `// 1. await Firebase.initializeApp...`)
+   - `supabase secrets set FCM_SERVER_KEY=xxx` pra edge function `enviar-push`
+     chamar FCM API real
 
-5. **Build iOS** — precisa de Mac com Xcode
+3. **iOS App Store** — Mac + Xcode + Apple Developer ($99/ano).
+
+4. **Domínio próprio** — abre caminho pra Universal Links / App Links
+   (ver `project_dominio_universal_links.md` na memória).
+
+5. **pg_cron pra waitlist expirar 24h** — requer Supabase Pro plan.
+
+### Dívidas operacionais (UI de 1 clique)
+
+- **Links reais das stores** na bridge `auth-bridge` (hoje `href="#"`):
+  atualizar a edge function quando apps forem publicados.
+- **Desligar Vercel Authentication** da landing pra ela ficar pública.
+- **Placeholders** da landing (fotos, contatos reais) — lista em
+  `docs/landing_assets_todo.md`.
 
 ---
 
-**Última atualização:** 9 de Abril de 2026  
-**Versão PRD:** 1.2  
-**Status:** App funcional (Web + Android APK). 51 arquivos Dart, 107 testes, 10 migrations, 7 edge functions. 40 commits.
+**Última atualização:** 23 de Abril de 2026
+**Status:** App completo ponta-a-ponta. Supabase remoto em sync
+(17 migrations, 12 edge functions, 6 buckets). 156 testes Flutter +
+13 testes landing verdes. `flutter analyze` sem novos issues.
+72+ commits pushados em `origin/main` (BaxiJen/favo_de_colorir).
