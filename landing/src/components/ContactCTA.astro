@@ -16,12 +16,75 @@ const mapEmbedUrl = `https://www.google.com/maps?q=${mapQuery}&output=embed`;
         dúvida — chama a Débora no WhatsApp. Sem formulário, sem fila, sem
         robô: é ela mesma que responde.
       </p>
+    </div>
+
+    <div class="contact__right">
+      <aside class="contact__card" aria-labelledby="contact-card-title">
+        <p class="eyebrow contact__card-eyebrow">Fale com a Débora</p>
+        <h3 id="contact-card-title" class="contact__card-title">Vem dar uma passada</h3>
+
+        <ul class="contact__channels">
+          <li>
+            <span class="contact__channel-label">WhatsApp</span>
+            <a href="https://wa.me/" class="contact__channel-value" data-todo="numero-real">+55 (21) — a confirmar</a>
+          </li>
+          <li>
+            <span class="contact__channel-label">Instagram</span>
+            <a href="https://instagram.com/favodecolorir" class="contact__channel-value" data-todo="handle-real">@favodecolorir</a>
+          </li>
+          <li>
+            <span class="contact__channel-label">E-mail</span>
+            <a href="mailto:contato@favodecolorir.com.br" class="contact__channel-value" data-todo="email-real">contato@favodecolorir.com.br</a>
+          </li>
+        </ul>
+
+        <div id="alunas" class="contact__alunas">
+          <p class="contact__alunas-label">Já faz aula no ateliê?</p>
+          <div class="contact__stores">
+            <a
+              class="store-badge"
+              href="#"
+              data-todo="link-real-app-store"
+              aria-label="Baixar na App Store"
+            >
+              <svg class="store-badge__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  fill="currentColor"
+                  d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"
+                />
+              </svg>
+              <span class="store-badge__copy">
+                <span class="store-badge__small">Baixar na</span>
+                <span class="store-badge__big">App Store</span>
+              </span>
+            </a>
+
+            <a
+              class="store-badge"
+              href="#"
+              data-todo="link-real-google-play"
+              aria-label="Baixar no Google Play"
+            >
+              <svg class="store-badge__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  fill="currentColor"
+                  d="M4.5 3.1 15.6 12 4.5 20.9a.9.9 0 0 1-.5-.8V3.9a.9.9 0 0 1 .5-.8zm12.4 7.2 2.9 1.6a.9.9 0 0 1 0 1.6l-2.9 1.6L14.2 12zM5.5 2.1l11.3 6.5-2.6 2.6zm11.3 19.8L5.5 21.9l8.7-8.7z"
+                />
+              </svg>
+              <span class="store-badge__copy">
+                <span class="store-badge__small">Disponível no</span>
+                <span class="store-badge__big">Google Play</span>
+              </span>
+            </a>
+          </div>
+        </div>
+      </aside>
 
       <div class="contact__map">
         <iframe
           src={mapEmbedUrl}
           width="100%"
-          height="240"
+          height="200"
           style="border:0; border-radius: var(--r-card);"
           allowfullscreen
           loading="lazy"
@@ -33,67 +96,6 @@ const mapEmbedUrl = `https://www.google.com/maps?q=${mapQuery}&output=embed`;
         </p>
       </div>
     </div>
-
-    <aside class="contact__card" aria-labelledby="contact-card-title">
-      <p class="eyebrow contact__card-eyebrow">Fale com a Débora</p>
-      <h3 id="contact-card-title" class="contact__card-title">Vem dar uma passada</h3>
-
-      <ul class="contact__channels">
-        <li>
-          <span class="contact__channel-label">WhatsApp</span>
-          <a href="https://wa.me/" class="contact__channel-value" data-todo="numero-real">+55 (21) — a confirmar</a>
-        </li>
-        <li>
-          <span class="contact__channel-label">Instagram</span>
-          <a href="https://instagram.com/favodecolorir" class="contact__channel-value" data-todo="handle-real">@favodecolorir</a>
-        </li>
-        <li>
-          <span class="contact__channel-label">E-mail</span>
-          <a href="mailto:contato@favodecolorir.com.br" class="contact__channel-value" data-todo="email-real">contato@favodecolorir.com.br</a>
-        </li>
-      </ul>
-
-      <div id="alunas" class="contact__alunas">
-        <p class="contact__alunas-label">Já faz aula no ateliê?</p>
-        <div class="contact__stores">
-          <a
-            class="store-badge"
-            href="#"
-            data-todo="link-real-app-store"
-            aria-label="Baixar na App Store"
-          >
-            <svg class="store-badge__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path
-                fill="currentColor"
-                d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"
-              />
-            </svg>
-            <span class="store-badge__copy">
-              <span class="store-badge__small">Baixar na</span>
-              <span class="store-badge__big">App Store</span>
-            </span>
-          </a>
-
-          <a
-            class="store-badge"
-            href="#"
-            data-todo="link-real-google-play"
-            aria-label="Baixar no Google Play"
-          >
-            <svg class="store-badge__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path
-                fill="currentColor"
-                d="M4.5 3.1 15.6 12 4.5 20.9a.9.9 0 0 1-.5-.8V3.9a.9.9 0 0 1 .5-.8zm12.4 7.2 2.9 1.6a.9.9 0 0 1 0 1.6l-2.9 1.6L14.2 12zM5.5 2.1l11.3 6.5-2.6 2.6zm11.3 19.8L5.5 21.9l8.7-8.7z"
-              />
-            </svg>
-            <span class="store-badge__copy">
-              <span class="store-badge__small">Disponível no</span>
-              <span class="store-badge__big">Google Play</span>
-            </span>
-          </a>
-        </div>
-      </div>
-    </aside>
   </div>
 </section>
 
@@ -116,15 +118,19 @@ const mapEmbedUrl = `https://www.google.com/maps?q=${mapQuery}&output=embed`;
 
   .contact__copy { display: grid; gap: var(--s-5); max-width: 36rem; }
 
+  .contact__right {
+    display: grid;
+    gap: var(--s-5);
+  }
+
   .contact__map {
     display: grid;
     gap: var(--s-3);
-    margin-block-start: var(--s-2);
   }
 
   .contact__map iframe {
     width: 100%;
-    min-height: 220px;
+    min-height: 180px;
     border-radius: var(--r-card);
   }
 
