@@ -15,8 +15,35 @@ interface RecadoPayload {
 
 Deno.serve(async (req) => {
   try {
-    const payload: RecadoPayload = await req.json();
+    // Auth check: só admin pode disparar broadcast. Sem isso, qualquer
+    // cliente com anon key conseguiria enviar notificações pra toda turma.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Sem auth" }), {
+        status: 401,
+      });
+    }
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const caller = await supabase.auth.getUser(
+      authHeader.replace("Bearer ", ""),
+    );
+    if (caller.error || !caller.data.user) {
+      return new Response(JSON.stringify({ error: "Sessão inválida" }), {
+        status: 401,
+      });
+    }
+    const { data: callerProfile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", caller.data.user.id)
+      .single();
+    if (!callerProfile || callerProfile.role !== "admin") {
+      return new Response(JSON.stringify({ error: "Apenas admin" }), {
+        status: 403,
+      });
+    }
+
+    const payload: RecadoPayload = await req.json();
 
     const target = payload.target ?? "all";
     let recipientIds: string[] = [];
@@ -59,6 +86,20 @@ Deno.serve(async (req) => {
     }));
 
     await supabase.from("notifications").insert(notifications);
+
+    // Audit
+    try {
+      await supabase.from("audit_logs").insert({
+        actor_id: caller.data.user.id,
+        action: "broadcast_recado",
+        resource_type: "notifications",
+        changes: {
+          target,
+          count: recipientIds.length,
+          title: payload.title,
+        },
+      });
+    } catch (_) { /* não trava o envio se audit falhar */ }
 
     return new Response(
       JSON.stringify({ sent: recipientIds.length }),

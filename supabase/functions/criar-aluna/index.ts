@@ -14,8 +14,35 @@ interface CriarAlunaPayload {
 
 Deno.serve(async (req) => {
   try {
-    const payload: CriarAlunaPayload = await req.json();
+    // Auth check: criar user é operação de admin. Sem isso, anon key +
+    // URL pública permitiriam qualquer um criar conta arbitrária.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Sem auth" }), {
+        status: 401,
+      });
+    }
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const caller = await supabase.auth.getUser(
+      authHeader.replace("Bearer ", ""),
+    );
+    if (caller.error || !caller.data.user) {
+      return new Response(JSON.stringify({ error: "Sessão inválida" }), {
+        status: 401,
+      });
+    }
+    const { data: callerProfile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", caller.data.user.id)
+      .single();
+    if (!callerProfile || callerProfile.role !== "admin") {
+      return new Response(JSON.stringify({ error: "Apenas admin" }), {
+        status: 403,
+      });
+    }
+
+    const payload: CriarAlunaPayload = await req.json();
 
     // Gerar senha temporária se não fornecida
     const password = payload.password ?? `Favo${Math.random().toString(36).slice(-8)}!`;
@@ -70,6 +97,21 @@ Deno.serve(async (req) => {
       }));
       await supabase.from("turma_alunos").insert(enrollments);
     }
+
+    // Audit
+    try {
+      await supabase.from("audit_logs").insert({
+        actor_id: caller.data.user.id,
+        action: "create_user",
+        resource_type: "profile",
+        resource_id: user.user.id,
+        changes: {
+          email: payload.email,
+          role,
+          turmas: payload.turma_ids?.length ?? 0,
+        },
+      });
+    } catch (_) { /* não trava o fluxo */ }
 
     return new Response(
       JSON.stringify({
