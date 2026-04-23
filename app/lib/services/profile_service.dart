@@ -113,4 +113,33 @@ class ProfileService {
       'p_user_id': userId,
     });
   }
+
+  /// Admin gera nova senha temporária. Retorna a senha gerada.
+  Future<String> resetUserPassword(String userId) async {
+    final response = await _client.functions.invoke(
+      'reset-senha-usuario',
+      body: {'user_id': userId},
+    );
+    final data = response.data as Map<String, dynamic>;
+    if (data.containsKey('error')) {
+      throw Exception(data['error']);
+    }
+    return data['password'] as String;
+  }
+
+  Future<void> rejectProfileWithReason(String userId, String reason) async {
+    await updateProfile(userId, {
+      'status': 'blocked',
+      'rejection_reason': reason,
+    });
+    // Notifica a pessoa
+    await _client.from('notifications').insert({
+      'user_id': userId,
+      'title': 'Cadastro não aprovado',
+      'body': reason.isEmpty
+          ? 'Seu cadastro não foi aprovado.'
+          : 'Seu cadastro não foi aprovado: $reason',
+      'type': 'approval',
+    });
+  }
 }

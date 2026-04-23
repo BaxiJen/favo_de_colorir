@@ -298,7 +298,31 @@ class _TurmaCard extends ConsumerWidget {
                   ],
                 ),
               );
-              if (action == 'deactivate') {
+              if (action == 'deactivate' && context.mounted) {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: Text('Desativar ${turma.name}?'),
+                    content: const Text(
+                      'A turma some das listagens e alunas matriculadas não vão mais ver aulas futuras. '
+                      'Dá pra reativar depois.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancelar'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: FavoColors.error,
+                        ),
+                        child: const Text('Desativar'),
+                      ),
+                    ],
+                  ),
+                );
+                if (ok != true) return;
                 await ref.read(agendaServiceProvider).deactivateTurma(turma.id);
                 ref.invalidate(allTurmasProvider);
               }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/error_handler.dart';
 import '../../core/theme.dart';
 import '../../models/profile.dart';
 import '../../services/profile_service.dart';
@@ -18,6 +20,14 @@ class AdminUsersScreen extends ConsumerStatefulWidget {
 
 class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
   String _roleFilter = 'all';
+  String _searchQuery = '';
+  final _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +37,27 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
       appBar: AppBar(title: const Text('Gestão de Usuários')),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+            child: TextField(
+              controller: _searchCtrl,
+              decoration: InputDecoration(
+                hintText: 'Buscar por nome ou e-mail',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: _searchQuery.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      ),
+              ),
+              onChanged: (v) => setState(() => _searchQuery = v.trim()),
+            ),
+          ),
+          const SizedBox(height: 8),
           // Filter chips
           SizedBox(
             height: 48,
@@ -38,6 +69,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                 _buildChip('Admin', 'admin'),
                 _buildChip('Professora', 'teacher'),
                 _buildChip('Estudante', 'student'),
+                _buildChip('Assistente', 'assistant'),
               ],
             ),
           ),
@@ -46,7 +78,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
           Expanded(
             child: profilesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Erro: $e')),
+              error: (e, _) => Center(child: Text(friendlyError(e))),
               data: (profiles) {
                 var filtered = profiles;
                 if (_roleFilter != 'all') {
@@ -54,9 +86,26 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                       .where((p) => p.role.name == _roleFilter)
                       .toList();
                 }
+                if (_searchQuery.isNotEmpty) {
+                  final q = _searchQuery.toLowerCase();
+                  filtered = filtered
+                      .where((p) =>
+                          p.fullName.toLowerCase().contains(q) ||
+                          p.email.toLowerCase().contains(q))
+                      .toList();
+                }
 
                 if (filtered.isEmpty) {
-                  return const Center(child: Text('Nenhum usuário'));
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Text(
+                        _searchQuery.isNotEmpty
+                            ? 'Nenhum resultado pra "$_searchQuery"'
+                            : 'Nenhum usuário',
+                      ),
+                    ),
+                  );
                 }
 
                 return RefreshIndicator(
@@ -107,12 +156,22 @@ class _UserCard extends ConsumerWidget {
         leading: CircleAvatar(
           radius: 20,
           backgroundColor: _roleColor(profile.role).withAlpha(30),
-          child: Text(
-            profile.fullName.isNotEmpty ? profile.fullName[0].toUpperCase() : '?',
-            style: TextStyle(color: _roleColor(profile.role), fontWeight: FontWeight.bold),
-          ),
+          backgroundImage: profile.avatarUrl != null
+              ? NetworkImage(profile.avatarUrl!)
+              : null,
+          child: profile.avatarUrl == null
+              ? Text(
+                  profile.fullName.isNotEmpty
+                      ? profile.fullName[0].toUpperCase()
+                      : '?',
+                  style: TextStyle(
+                      color: _roleColor(profile.role),
+                      fontWeight: FontWeight.bold),
+                )
+              : null,
         ),
-        title: Text(profile.fullName, style: Theme.of(context).textTheme.titleSmall),
+        title:
+            Text(profile.fullName, style: Theme.of(context).textTheme.titleSmall),
         subtitle: Row(
           children: [
             _RoleBadge(profile.role),
@@ -130,11 +189,14 @@ class _UserCard extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(profile.email, style: Theme.of(context).textTheme.bodySmall),
+                Text(profile.email,
+                    style: Theme.of(context).textTheme.bodySmall),
                 if (profile.phone != null)
-                  Text(profile.phone!, style: Theme.of(context).textTheme.bodySmall),
+                  Text(profile.phone!,
+                      style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: 16),
-                Text('Alterar papel:', style: Theme.of(context).textTheme.labelMedium),
+                Text('Alterar papel:',
+                    style: Theme.of(context).textTheme.labelMedium),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -144,16 +206,13 @@ class _UserCard extends ConsumerWidget {
                       selected: profile.role == role,
                       onSelected: profile.role == role
                           ? null
-                          : (_) async {
-                              await ref.read(profileServiceProvider)
-                                  .updateProfile(profile.id, {'role': role.name});
-                              ref.invalidate(allProfilesProvider);
-                            },
+                          : (_) => _changeRole(context, ref, role),
                     );
                   }).toList(),
                 ),
                 const SizedBox(height: 12),
-                Text('Status:', style: Theme.of(context).textTheme.labelMedium),
+                Text('Status:',
+                    style: Theme.of(context).textTheme.labelMedium),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -163,13 +222,15 @@ class _UserCard extends ConsumerWidget {
                       selected: profile.status == status,
                       onSelected: profile.status == status
                           ? null
-                          : (_) async {
-                              await ref.read(profileServiceProvider)
-                                  .updateProfile(profile.id, {'status': status.name});
-                              ref.invalidate(allProfilesProvider);
-                            },
+                          : (_) => _changeStatus(context, ref, status),
                     );
                   }).toList(),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () => _resetPassword(context, ref),
+                  icon: const Icon(Icons.vpn_key_outlined, size: 18),
+                  label: const Text('Gerar nova senha'),
                 ),
               ],
             ),
@@ -179,26 +240,172 @@ class _UserCard extends ConsumerWidget {
     );
   }
 
+  Future<void> _changeRole(
+      BuildContext context, WidgetRef ref, UserRole newRole) async {
+    final ok = await _confirm(
+      context,
+      title: 'Mudar papel?',
+      body:
+          '${profile.fullName} passa de "${_roleLabel(profile.role)}" pra "${_roleLabel(newRole)}".',
+    );
+    if (!ok) return;
+    try {
+      await ref
+          .read(profileServiceProvider)
+          .updateProfile(profile.id, {'role': newRole.name});
+      ref.invalidate(allProfilesProvider);
+    } catch (e) {
+      if (context.mounted) showErrorSnackBar(context, e);
+    }
+  }
+
+  Future<void> _changeStatus(
+      BuildContext context, WidgetRef ref, UserStatus status) async {
+    final destructive = status == UserStatus.blocked ||
+        status == UserStatus.inactive;
+    if (destructive) {
+      final ok = await _confirm(
+        context,
+        title: status == UserStatus.blocked
+            ? 'Bloquear ${profile.fullName}?'
+            : 'Desativar ${profile.fullName}?',
+        body: status == UserStatus.blocked
+            ? 'A pessoa não vai conseguir entrar no app enquanto estiver bloqueada.'
+            : 'A pessoa não aparece em turmas e listagens ativas. Dá pra reativar depois.',
+        confirmLabel: status == UserStatus.blocked ? 'Bloquear' : 'Desativar',
+        destructive: true,
+      );
+      if (!ok) return;
+    }
+    try {
+      await ref
+          .read(profileServiceProvider)
+          .updateProfile(profile.id, {'status': status.name});
+      ref.invalidate(allProfilesProvider);
+    } catch (e) {
+      if (context.mounted) showErrorSnackBar(context, e);
+    }
+  }
+
+  Future<void> _resetPassword(BuildContext context, WidgetRef ref) async {
+    final ok = await _confirm(
+      context,
+      title: 'Gerar nova senha?',
+      body:
+          'A senha atual de ${profile.fullName} vai deixar de funcionar. Você recebe a nova pra repassar.',
+      confirmLabel: 'Gerar',
+    );
+    if (!ok) return;
+    try {
+      final newPassword = await ref
+          .read(profileServiceProvider)
+          .resetUserPassword(profile.id);
+      if (!context.mounted) return;
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Nova senha'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Envia pra ${profile.fullName}:',
+                  style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: FavoColors.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SelectableText(
+                        newPassword,
+                        style: const TextStyle(
+                            fontFamily: 'monospace', fontSize: 16),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy, size: 18),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: newPassword));
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          const SnackBar(content: Text('Senha copiada!')),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK')),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) showErrorSnackBar(context, e);
+    }
+  }
+
+  Future<bool> _confirm(
+    BuildContext context, {
+    required String title,
+    required String body,
+    String confirmLabel = 'Confirmar',
+    bool destructive = false,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(title),
+            content: Text(body),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: destructive
+                    ? ElevatedButton.styleFrom(
+                        backgroundColor: FavoColors.error,
+                      )
+                    : null,
+                child: Text(confirmLabel),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   Color _roleColor(UserRole role) => switch (role) {
-    UserRole.admin => FavoColors.secondary,
-    UserRole.teacher => FavoColors.primary,
-    UserRole.assistant => FavoColors.onSurfaceVariant,
-    UserRole.student => FavoColors.outline,
-  };
+        UserRole.admin => FavoColors.secondary,
+        UserRole.teacher => FavoColors.primary,
+        UserRole.assistant => FavoColors.onSurfaceVariant,
+        UserRole.student => FavoColors.outline,
+      };
 
   String _roleLabel(UserRole role) => switch (role) {
-    UserRole.admin => 'Admin',
-    UserRole.teacher => 'Professora',
-    UserRole.assistant => 'Assistente',
-    UserRole.student => 'Estudante',
-  };
+        UserRole.admin => 'Admin',
+        UserRole.teacher => 'Professora',
+        UserRole.assistant => 'Assistente',
+        UserRole.student => 'Estudante',
+      };
 
   String _statusLabel(UserStatus status) => switch (status) {
-    UserStatus.active => 'Ativo',
-    UserStatus.pending => 'Pendente',
-    UserStatus.inactive => 'Inativo',
-    UserStatus.blocked => 'Bloqueado',
-  };
+        UserStatus.active => 'Ativo',
+        UserStatus.pending => 'Pendente',
+        UserStatus.inactive => 'Inativo',
+        UserStatus.blocked => 'Bloqueado',
+      };
 }
 
 class _RoleBadge extends StatelessWidget {
@@ -226,7 +433,8 @@ class _RoleBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(label,
-          style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
+          style: TextStyle(
+              fontSize: 10, color: color, fontWeight: FontWeight.w600)),
     );
   }
 }
