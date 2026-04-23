@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/error_handler.dart';
 import '../../core/theme.dart';
+import '../../core/time_parsing.dart';
 import '../../models/turma.dart';
 import '../../services/agenda_service.dart';
 
@@ -169,10 +170,10 @@ Future<void> showTurmaFormDialog(
     int capacity = existing?.capacity ?? 8;
     int? dayOfWeek = existing?.dayOfWeek;
     TimeOfDay startTime = existing != null
-        ? _parseTimeOfDay(existing.startTime)
+        ? parseTimeOfDay(existing.startTime)
         : const TimeOfDay(hour: 9, minute: 0);
     TimeOfDay endTime = existing != null
-        ? _parseTimeOfDay(existing.endTime)
+        ? parseTimeOfDay(existing.endTime)
         : const TimeOfDay(hour: 11, minute: 0);
 
     final result = await showDialog<bool>(
@@ -371,8 +372,8 @@ Future<void> showTurmaFormDialog(
 Future<void> _showSingleAulaDialog(
     BuildContext context, WidgetRef ref, Turma turma) async {
   DateTime? date;
-  TimeOfDay startTime = _parseTimeOfDay(turma.startTime);
-  TimeOfDay endTime = _parseTimeOfDay(turma.endTime);
+  TimeOfDay startTime = parseTimeOfDay(turma.startTime);
+  TimeOfDay endTime = parseTimeOfDay(turma.endTime);
   final notesCtrl = TextEditingController();
 
   final ok = await showDialog<bool>(
@@ -474,13 +475,6 @@ const _weekDaysLong = [
   'Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado',
 ];
 
-TimeOfDay _parseTimeOfDay(String s) {
-  final parts = s.split(':');
-  return TimeOfDay(
-    hour: int.parse(parts[0]),
-    minute: int.parse(parts[1]),
-  );
-}
 
 class _TurmaCard extends ConsumerWidget {
   final Turma turma;
