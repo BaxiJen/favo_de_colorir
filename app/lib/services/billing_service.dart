@@ -174,6 +174,22 @@ class BillingService {
     }
   }
 
+  /// Cria cobrança Pix real via edge function.
+  /// Retorna map com qr_code_base64, qr_code (copia-e-cola), payment_id.
+  /// Throws se MP_ACCESS_TOKEN não configurado (aluna cai pro fluxo
+  /// de "enviar comprovante").
+  Future<Map<String, dynamic>> criarPagamentoPix(String cobrancaId) async {
+    final response = await _client.functions.invoke(
+      'criar-pagamento-pix',
+      body: {'cobranca_id': cobrancaId},
+    );
+    final data = response.data as Map<String, dynamic>;
+    if (data.containsKey('error')) {
+      throw Exception(data['hint'] ?? data['error']);
+    }
+    return data;
+  }
+
   /// Resumo financeiro do mês (admin)
   Future<Map<String, double>> getMonthSummary(String monthYear) async {
     final data = await _client

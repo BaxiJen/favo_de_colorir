@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -227,46 +229,65 @@ class _CurrentBillCard extends ConsumerWidget {
   }
 
   Future<void> _pay(BuildContext context, WidgetRef ref) async {
-    final method = await showDialog<PaymentMethod>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Método de pagamento'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.pix),
-              title: const Text('Pix'),
-              subtitle: const Text('Sem taxas'),
-              onTap: () => Navigator.pop(context, PaymentMethod.pix),
+    // Pix real via Mercado Pago — se MP_ACCESS_TOKEN estiver configurado
+    // a aluna vê o QR + copia-e-cola. Se não, fallback pra "enviar
+    // comprovante" (já existente).
+    if (!context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(
+      duration: Duration(seconds: 30),
+      content: Row(children: [
+        SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+        ),
+        SizedBox(width: 12),
+        Text('Gerando Pix...'),
+      ]),
+    ));
+
+    try {
+      final pix = await ref
+          .read(billingServiceProvider)
+          .criarPagamentoPix(bill.id);
+      messenger.hideCurrentSnackBar();
+      ref.invalidate(myBillsProvider);
+      if (!context.mounted) return;
+
+      await showDialog(
+        context: context,
+        builder: (ctx) => _PixDialog(
+          qrBase64: pix['qr_code_base64'] as String?,
+          copyPaste: pix['qr_code'] as String?,
+          amount: (pix['amount'] as num).toDouble(),
+        ),
+      );
+    } catch (e) {
+      messenger.hideCurrentSnackBar();
+      if (!context.mounted) return;
+      // Fallback — orienta aluna a enviar comprovante
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Pix indisponível no app'),
+          content: const Text(
+              'Faça o Pix pelo banco e envie o comprovante aqui — a gente confirma.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Entendi'),
             ),
-            ListTile(
-              leading: const Icon(Icons.credit_card),
-              title: const Text('Cartão'),
-              subtitle: const Text('Via Nuvemshop'),
-              onTap: () => Navigator.pop(context, PaymentMethod.card),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _uploadComprovante(context, ref);
+              },
+              child: const Text('Enviar comprovante'),
             ),
           ],
         ),
-      ),
-    );
-
-    if (method == null) return;
-
-    try {
-      await ref
-          .read(billingServiceProvider)
-          .registerPayment(bill.id, method, null);
-      ref.invalidate(myBillsProvider);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content:
-                  Text('Pagamento registrado — aguarde confirmação do admin.')),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) showErrorSnackBar(context, e);
+      );
     }
   }
 
@@ -287,6 +308,100 @@ class _CurrentBillCard extends ConsumerWidget {
       CobrancaStatus.overdue => FavoColors.error,
       _ => FavoColors.primary,
     };
+  }
+}
+
+class _PixDialog extends StatelessWidget {
+  final String? qrBase64;
+  final String? copyPaste;
+  final double amount;
+
+  const _PixDialog({
+    required this.qrBase64,
+    required this.copyPaste,
+    required this.amount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Pix • R\$ ${amount.toStringAsFixed(2)}',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            if (qrBase64 != null)
+              Image.memory(
+                base64Decode(qrBase64!),
+                height: 220,
+                fit: BoxFit.contain,
+                gaplessPlayback: true,
+              )
+            else
+              Container(
+                height: 220,
+                alignment: Alignment.center,
+                color: FavoColors.surfaceContainerLow,
+                child: const Text('QR code indisponível'),
+              ),
+            const SizedBox(height: 12),
+            if (copyPaste != null) ...[
+              Text('Ou copia-e-cola:',
+                  style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: FavoColors.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SelectableText(
+                        copyPaste!,
+                        maxLines: 3,
+                        style: const TextStyle(
+                            fontFamily: 'monospace', fontSize: 11),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy, size: 18),
+                      onPressed: () {
+                        Clipboard.setData(
+                            ClipboardData(text: copyPaste!));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Código copiado!'),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Text(
+              'Após o pagamento, a confirmação chega automática (pode levar alguns segundos).',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Fechar'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
