@@ -125,6 +125,19 @@ class ProfileService {
     return response.data as Map<String, dynamic>;
   }
 
+  /// Marca o onboarding como concluído (chamado quando aluna termina o
+  /// tutorial ou clica "pular"). Pode ser reexecutado pra revisitar.
+  Future<void> markOnboarded(String userId) async {
+    await updateProfile(userId, {
+      'onboarded_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  /// Limpa o flag de onboarding (usado pra "revisitar tutorial").
+  Future<void> resetOnboarding(String userId) async {
+    await updateProfile(userId, {'onboarded_at': null});
+  }
+
   Future<void> deleteAccount(String userId) async {
     await _client.rpc('delete_user_account', params: {
       'p_user_id': userId,

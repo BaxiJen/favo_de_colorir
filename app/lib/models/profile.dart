@@ -14,6 +14,7 @@ class Profile {
   final UserRole role;
   final UserStatus status;
   final Map<String, dynamic>? notificationPreferences;
+  final DateTime? onboardedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -29,9 +30,12 @@ class Profile {
     required this.role,
     required this.status,
     this.notificationPreferences,
+    this.onboardedAt,
     required this.createdAt,
     required this.updatedAt,
   });
+
+  bool get hasOnboarded => onboardedAt != null;
 
   factory Profile.fromJson(Map<String, dynamic> json) {
     return Profile(
@@ -49,6 +53,9 @@ class Profile {
       status: UserStatus.values.byName(json['status'] as String),
       notificationPreferences:
           json['notification_preferences'] as Map<String, dynamic>?,
+      onboardedAt: json['onboarded_at'] != null
+          ? DateTime.parse(json['onboarded_at'] as String)
+          : null,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
@@ -67,6 +74,7 @@ class Profile {
       'role': role.name,
       'status': status.name,
       'notification_preferences': notificationPreferences,
+      'onboarded_at': onboardedAt?.toIso8601String(),
     };
   }
 

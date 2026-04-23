@@ -18,6 +18,16 @@ class HomeScreen extends ConsumerWidget {
     final profileAsync = ref.watch(currentProfileProvider);
     final nextAulaAsync = ref.watch(nextAulaProvider);
 
+    // Redireciona pro onboarding no primeiro acesso.
+    ref.listen(currentProfileProvider, (_, next) {
+      final p = next.value;
+      if (p != null && p.isStudent && !p.hasOnboarded) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) context.go('/onboarding');
+        });
+      }
+    });
+
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(

@@ -181,6 +181,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           label: 'Conversas',
           onTap: () => context.push('/chat'),
         ),
+        _MenuItem(
+          icon: Icons.school_outlined,
+          label: 'Rever tutorial',
+          onTap: () => _reviewTutorial(context, ref, profile),
+        ),
         const SizedBox(height: 24),
 
         // Logout
@@ -214,6 +219,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _reviewTutorial(
+      BuildContext context, WidgetRef ref, Profile profile) async {
+    try {
+      await ref.read(profileServiceProvider).resetOnboarding(profile.id);
+      ref.invalidate(currentProfileProvider);
+      if (context.mounted) context.go('/onboarding');
+    } catch (e) {
+      if (context.mounted) showErrorSnackBar(context, e);
+    }
   }
 
   Future<void> _togglePref(Profile profile, String key, bool value) async {
