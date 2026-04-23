@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
@@ -18,7 +19,16 @@ class CommunityFeedScreen extends ConsumerWidget {
     final feedAsync = ref.watch(communityFeedProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Comunidade')),
+      appBar: AppBar(
+        title: const Text('Comunidade'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline),
+            tooltip: 'Conversas',
+            onPressed: () => context.push('/chat'),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _newPost(context, ref),
         child: const Icon(Icons.edit),

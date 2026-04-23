@@ -189,6 +189,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           label: 'Notificações',
           onTap: () => context.push('/notifications'),
         ),
+        _MenuItem(
+          icon: Icons.chat_bubble_outline,
+          label: 'Conversas',
+          onTap: () => context.push('/chat'),
+        ),
         const SizedBox(height: 24),
 
         // Logout

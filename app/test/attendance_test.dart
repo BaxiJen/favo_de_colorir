@@ -73,7 +73,7 @@ Map<String, dynamic> _base({required String? status}) => {
       'aula_id': 'a-1',
       'student_id': 's-1',
       'confirmation': 'confirmed',
-      if (status != null) 'attendance_status': status,
+      'attendance_status': ?status,
       'is_makeup': false,
       'created_at': '2026-04-22T10:00:00Z',
     };

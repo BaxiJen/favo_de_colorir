@@ -23,6 +23,8 @@ import '../modules/admin/admin_config_screen.dart';
 import '../modules/admin/admin_notifications_screen.dart';
 import '../modules/admin/admin_policies_screen.dart';
 import '../modules/cobranca/admin_billing_screen.dart';
+import '../modules/comunidade/chat_detail_screen.dart';
+import '../modules/comunidade/chat_list_screen.dart';
 import '../modules/comunidade/community_feed_screen.dart';
 import '../modules/estoque/stock_screen.dart';
 import '../modules/cobranca/my_payments_screen.dart';
@@ -163,6 +165,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/community',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const CommunityFeedScreen(),
+      ),
+      GoRoute(
+        path: '/chat',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const ChatListScreen(),
+      ),
+      GoRoute(
+        path: '/chat/:peerId',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return ChatDetailScreen(
+            peerId: state.pathParameters['peerId']!,
+            peerName: extra['peerName'] as String? ?? 'Conversa',
+            peerAvatar: extra['peerAvatar'] as String?,
+          );
+        },
       ),
       GoRoute(
         path: '/stock',
