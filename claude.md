@@ -1,5 +1,19 @@
 # Claude.md — Favo de Colorir
 
+## Instruções para Claude Code
+
+**Skill obrigatória para UI/frontend:** sempre usar a skill oficial [`frontend-design`](https://github.com/anthropics/skills/tree/main/skills/frontend-design) (`frontend-design@claude-plugins-official`) em qualquer trabalho que envolva:
+
+- Landing page (Astro/Vercel)
+- Componentes Flutter novos ou refatorações visuais do app
+- Telas admin / dashboards
+- Qualquer HTML/CSS/componente web
+- Tematização, tipografia, paleta, animações, layout
+
+Carregue a skill antes de gerar código de UI. A intenção é evitar estética genérica de "AI slop" e manter coerência com o Design System **Artisanal Modernism** (Epilogue + Manrope, tonal surfaces) já aplicado no app Flutter. Tipografia distintiva, paleta comprometida com acentos fortes, composição espacial com asymmetry/overlap, motion intencional via CSS. Proibido: fontes genéricas (Inter, Roboto, Arial, Space Grotesk), paletas "roxo em branco", layouts previsíveis.
+
+---
+
 ## Visão Geral do Produto
 
 **Produto:** App Favo de Colorir (Ateliê de Cerâmica)  
