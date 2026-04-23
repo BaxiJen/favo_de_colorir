@@ -1,6 +1,12 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 
+import '../../core/error_handler.dart';
 import '../../core/theme.dart';
 import '../../models/cobranca.dart';
 import '../../services/billing_service.dart';
@@ -130,18 +136,38 @@ class _CurrentBillCard extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // Breakdown
-          _BreakdownRow(
-            label: 'Plano Mensal (Usabilidade Livre)',
-            value: bill.planAmount,
-          ),
-          _BreakdownRow(label: 'Argila (3 kg)', value: bill.clayAmount),
-          _BreakdownRow(
-              label: 'Queimas (2 peças)', value: bill.firingAmount),
+          // Breakdown — itens reais da cobrança
+          _ItemsBreakdown(cobrancaId: bill.id, fallback: bill),
           const SizedBox(height: 20),
 
+          if (bill.hasComprovante) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: FavoColors.primaryContainer.withAlpha(40),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.receipt_outlined,
+                      color: FavoColors.primary, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      bill.comprovanteUploadedAt == null
+                          ? 'Comprovante enviado.'
+                          : 'Comprovante enviado em ${DateFormat('dd/MM HH:mm').format(bill.comprovanteUploadedAt!)}. Aguardando confirmação.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+
           // Pay button
-          if (bill.isPending)
+          if (bill.isPending) ...[
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -150,9 +176,54 @@ class _CurrentBillCard extends ConsumerWidget {
                 label: const Text('Pagar com Pix'),
               ),
             ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _uploadComprovante(context, ref),
+                icon: const Icon(Icons.upload_file, size: 18),
+                label: Text(bill.hasComprovante
+                    ? 'Substituir comprovante'
+                    : 'Enviar comprovante (paguei por fora)'),
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  Future<void> _uploadComprovante(BuildContext context, WidgetRef ref) async {
+    final picker = ImagePicker();
+    final img = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1600,
+      imageQuality: 85,
+    );
+    if (img == null || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(
+      duration: Duration(seconds: 20),
+      content: Text('Enviando comprovante...'),
+    ));
+    try {
+      final bytes = kIsWeb ? await img.readAsBytes() : null;
+      await ref.read(billingServiceProvider).uploadComprovante(
+            cobrancaId: bill.id,
+            filename: img.name,
+            bytes: bytes,
+            file: kIsWeb ? null : File(img.path),
+          );
+      ref.invalidate(myBillsProvider);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Comprovante enviado. Admin vai confirmar.'),
+      ));
+    } catch (e) {
+      messenger.hideCurrentSnackBar();
+      if (context.mounted) showErrorSnackBar(context, e);
+    }
   }
 
   Future<void> _pay(BuildContext context, WidgetRef ref) async {
@@ -189,15 +260,13 @@ class _CurrentBillCard extends ConsumerWidget {
       ref.invalidate(myBillsProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pagamento registrado!')),
+          const SnackBar(
+              content:
+                  Text('Pagamento registrado — aguarde confirmação do admin.')),
         );
       }
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')),
-        );
-      }
+      if (context.mounted) showErrorSnackBar(context, e);
     }
   }
 
@@ -218,6 +287,45 @@ class _CurrentBillCard extends ConsumerWidget {
       CobrancaStatus.overdue => FavoColors.error,
       _ => FavoColors.primary,
     };
+  }
+}
+
+/// Breakdown lido de cobranca_itens (substitui os hardcoded "3 kg / 2 peças").
+class _ItemsBreakdown extends ConsumerWidget {
+  final String cobrancaId;
+  final Cobranca fallback;
+  const _ItemsBreakdown({required this.cobrancaId, required this.fallback});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return FutureBuilder<List<CobrancaItem>>(
+      future: ref.read(billingServiceProvider).getBillItems(cobrancaId),
+      builder: (_, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const LinearProgressIndicator();
+        }
+        final items = snap.data ?? const <CobrancaItem>[];
+        if (items.isEmpty) {
+          // Fallback: mostra apenas valores agregados se a cobrança não tem itens ainda
+          return Column(
+            children: [
+              if (fallback.planAmount > 0)
+                _BreakdownRow(label: 'Plano', value: fallback.planAmount),
+              if (fallback.clayAmount > 0)
+                _BreakdownRow(label: 'Argila', value: fallback.clayAmount),
+              if (fallback.firingAmount > 0)
+                _BreakdownRow(label: 'Queimas', value: fallback.firingAmount),
+            ],
+          );
+        }
+        return Column(
+          children: items
+              .map((it) =>
+                  _BreakdownRow(label: it.description, value: it.total))
+              .toList(),
+        );
+      },
+    );
   }
 }
 

@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/supabase_client.dart';
@@ -98,17 +101,60 @@ class BillingService {
     });
   }
 
-  /// Aluna registra pagamento
+  /// Aluna registra pagamento. [adminConfirmed] = true quando é admin marcando manual.
   Future<void> registerPayment(
     String cobrancaId,
     PaymentMethod method,
-    String? reference,
-  ) async {
+    String? reference, {
+    bool adminConfirmed = false,
+    String? paymentNotes,
+  }) async {
     await _client.from('cobrancas').update({
       'status': 'paid',
       'payment_method': method.name,
       'payment_reference': reference,
       'paid_at': DateTime.now().toIso8601String(),
+      'admin_confirmed': adminConfirmed,
+      'payment_notes': paymentNotes,
+    }).eq('id', cobrancaId);
+  }
+
+  /// Aluna anexa comprovante (imagem/PDF). Não marca como pago — admin ainda confirma.
+  Future<String> uploadComprovante({
+    required String cobrancaId,
+    required String filename,
+    Uint8List? bytes,
+    File? file,
+  }) async {
+    final userId = SupabaseConfig.auth.currentUser!.id;
+    final ext = filename.split('.').last.toLowerCase();
+    final path =
+        '$userId/$cobrancaId-${DateTime.now().millisecondsSinceEpoch}.$ext';
+    final storage = _client.storage.from('pagamentos');
+    if (bytes != null) {
+      await storage.uploadBinary(path, bytes);
+    } else {
+      await storage.upload(path, file!);
+    }
+    final signedUrl = await storage.createSignedUrl(path, 60 * 60 * 24 * 30);
+
+    await _client.from('cobrancas').update({
+      'comprovante_url': signedUrl,
+      'comprovante_uploaded_at': DateTime.now().toIso8601String(),
+    }).eq('id', cobrancaId);
+
+    return signedUrl;
+  }
+
+  /// Admin confirma recebimento de um comprovante enviado pela aluna.
+  Future<void> confirmComprovante(String cobrancaId,
+      {String? paymentNotes}) async {
+    await _client.from('cobrancas').update({
+      'status': 'paid',
+      'payment_method': 'external',
+      'paid_at': DateTime.now().toIso8601String(),
+      'admin_confirmed': true,
+      'payment_notes': paymentNotes,
     }).eq('id', cobrancaId);
   }
 

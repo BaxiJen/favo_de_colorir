@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/error_handler.dart';
 import '../../core/supabase_client.dart';
 import '../../core/theme.dart';
 import '../../models/cobranca.dart';
@@ -238,47 +239,240 @@ class _BillCard extends ConsumerWidget {
                 _Row('Queimas', bill.firingAmount),
                 Divider(color: FavoColors.outlineVariant.withAlpha(40)),
                 _Row('Total', bill.totalAmount, bold: true),
+                if (bill.hasComprovante) ...[
+                  const SizedBox(height: 10),
+                  InkWell(
+                    onTap: () =>
+                        _openComprovante(context, bill.comprovanteUrl!),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: FavoColors.primaryContainer.withAlpha(40),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.receipt_outlined,
+                              size: 16, color: FavoColors.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Comprovante enviado — toque pra ver',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                          const Icon(Icons.open_in_new, size: 14),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 // Actions
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     if (bill.status == CobrancaStatus.draft)
                       OutlinedButton(
-                        onPressed: () async {
-                          await ref.read(billingServiceProvider).confirmBill(bill.id);
-                          ref.invalidate(monthBillsProvider(monthYear));
-                        },
+                        onPressed: () =>
+                            _confirmAction(context, ref, bill.id),
                         child: const Text('Confirmar'),
                       ),
-                    if (bill.status == CobrancaStatus.pending) ...[
-                      const SizedBox(width: 8),
+                    if (bill.status == CobrancaStatus.pending)
                       ElevatedButton.icon(
-                        onPressed: () async {
-                          await ref.read(billingServiceProvider).notifyBill(bill.id);
-                          ref.invalidate(monthBillsProvider(monthYear));
-                        },
+                        onPressed: () => _notifyAction(context, ref, bill.id),
                         icon: const Icon(Icons.send, size: 16),
                         label: const Text('Notificar'),
                       ),
-                    ],
-                    if (bill.status == CobrancaStatus.notified || bill.status == CobrancaStatus.overdue) ...[
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () async {
-                          await ref.read(billingServiceProvider)
-                              .registerPayment(bill.id, PaymentMethod.external, 'manual');
-                          ref.invalidate(monthBillsProvider(monthYear));
-                        },
+                    if (bill.hasComprovante && !bill.isPaid)
+                      ElevatedButton.icon(
+                        onPressed: () =>
+                            _confirmComprovante(context, ref, bill.id),
+                        icon: const Icon(Icons.check, size: 16),
+                        label: const Text('Confirmar recebimento'),
+                      ),
+                    if ((bill.status == CobrancaStatus.notified ||
+                            bill.status == CobrancaStatus.overdue ||
+                            bill.status == CobrancaStatus.pending) &&
+                        !bill.hasComprovante)
+                      OutlinedButton(
+                        onPressed: () =>
+                            _manualPaymentDialog(context, ref, bill.id),
                         child: const Text('Pgto Manual'),
                       ),
-                    ],
                   ],
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _confirmAction(
+      BuildContext context, WidgetRef ref, String billId) async {
+    try {
+      await ref.read(billingServiceProvider).confirmBill(billId);
+      ref.invalidate(monthBillsProvider(monthYear));
+    } catch (e) {
+      if (context.mounted) showErrorSnackBar(context, e);
+    }
+  }
+
+  Future<void> _notifyAction(
+      BuildContext context, WidgetRef ref, String billId) async {
+    try {
+      await ref.read(billingServiceProvider).notifyBill(billId);
+      ref.invalidate(monthBillsProvider(monthYear));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Aluna/aluno notificado.')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) showErrorSnackBar(context, e);
+    }
+  }
+
+  Future<void> _confirmComprovante(
+      BuildContext context, WidgetRef ref, String billId) async {
+    final notesCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar recebimento?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Marque como paga e registre observação opcional.'),
+            const SizedBox(height: 10),
+            TextField(
+              controller: notesCtrl,
+              decoration: const InputDecoration(
+                  hintText: 'Ex: Recebido em dinheiro no dia 22.'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(billingServiceProvider).confirmComprovante(
+            billId,
+            paymentNotes: notesCtrl.text.trim().isEmpty
+                ? null
+                : notesCtrl.text.trim(),
+          );
+      ref.invalidate(monthBillsProvider(monthYear));
+    } catch (e) {
+      if (context.mounted) showErrorSnackBar(context, e);
+    }
+  }
+
+  Future<void> _manualPaymentDialog(
+      BuildContext context, WidgetRef ref, String billId) async {
+    PaymentMethod method = PaymentMethod.external;
+    final notesCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: const Text('Pagamento manual'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Como a pessoa pagou?'),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Dinheiro'),
+                    selected: method == PaymentMethod.external,
+                    onSelected: (_) =>
+                        setState(() => method = PaymentMethod.external),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Pix (fora do app)'),
+                    selected: method == PaymentMethod.pix,
+                    onSelected: (_) =>
+                        setState(() => method = PaymentMethod.pix),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Cartão'),
+                    selected: method == PaymentMethod.card,
+                    onSelected: (_) =>
+                        setState(() => method = PaymentMethod.card),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notesCtrl,
+                decoration:
+                    const InputDecoration(hintText: 'Observações (opcional)'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Registrar'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(billingServiceProvider).registerPayment(
+            billId,
+            method,
+            'manual',
+            adminConfirmed: true,
+            paymentNotes:
+                notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+          );
+      ref.invalidate(monthBillsProvider(monthYear));
+    } catch (e) {
+      if (context.mounted) showErrorSnackBar(context, e);
+    }
+  }
+
+  Future<void> _openComprovante(BuildContext context, String url) async {
+    await showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: InteractiveViewer(
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+            errorBuilder: (_, _, _) => Padding(
+              padding: const EdgeInsets.all(32),
+              child: Text(
+                  'Não foi possível carregar. Peça pra aluna/aluno reenviar.'),
+            ),
+          ),
+        ),
       ),
     );
   }
