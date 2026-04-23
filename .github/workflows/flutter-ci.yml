@@ -63,7 +63,7 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Create .env (placeholder — valores reais via --dart-define)
+      - name: Create .env (placeholder — defaults hardcoded no client)
         run: |
           echo "SUPABASE_URL=" > .env
           echo "SUPABASE_ANON_KEY=" >> .env
@@ -74,23 +74,8 @@ jobs:
       - name: Flutter doctor
         run: flutter doctor -v
 
-      - name: Guard — exige secrets configurados
-        run: |
-          if [ -z "${{ secrets.SUPABASE_URL }}" ] || [ -z "${{ secrets.SUPABASE_ANON_KEY }}" ]; then
-            echo "::error ::SUPABASE_URL ou SUPABASE_ANON_KEY ausentes nos secrets do repo."
-            echo "Configure em: Settings → Secrets and variables → Actions"
-            exit 1
-          fi
-
       - name: Build APK
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: |
-          flutter build apk --release --verbose \
-            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
-            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
-            2>&1 | tail -200
+        run: flutter build apk --release --verbose 2>&1 | tail -200
 
       - name: Upload APK
         if: success()
