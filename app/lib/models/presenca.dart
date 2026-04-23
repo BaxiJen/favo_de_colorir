@@ -1,10 +1,14 @@
 enum ConfirmationStatus { pending, confirmed, declined, noResponse }
 
+/// Chamada real feita pela professora.
+enum AttendanceStatus { pending, attended, absent, late }
+
 class Presenca {
   final String id;
   final String aulaId;
   final String studentId;
   final ConfirmationStatus confirmation;
+  final AttendanceStatus attendanceStatus;
   final bool? attended;
   final bool isMakeup;
   final DateTime? confirmedAt;
@@ -15,6 +19,7 @@ class Presenca {
     required this.aulaId,
     required this.studentId,
     required this.confirmation,
+    required this.attendanceStatus,
     this.attended,
     required this.isMakeup,
     this.confirmedAt,
@@ -27,6 +32,8 @@ class Presenca {
       aulaId: json['aula_id'] as String,
       studentId: json['student_id'] as String,
       confirmation: _parseConfirmation(json['confirmation'] as String),
+      attendanceStatus:
+          _parseAttendance(json['attendance_status'] as String? ?? 'pending'),
       attended: json['attended'] as bool?,
       isMakeup: json['is_makeup'] as bool,
       confirmedAt: json['confirmed_at'] != null
@@ -41,11 +48,15 @@ class Presenca {
       'aula_id': aulaId,
       'student_id': studentId,
       'confirmation': _confirmationToString(confirmation),
+      'attendance_status': attendanceToString(attendanceStatus),
       'attended': attended,
       'is_makeup': isMakeup,
       'confirmed_at': confirmedAt?.toIso8601String(),
     };
   }
+
+  bool get didAttend => attendanceStatus == AttendanceStatus.attended ||
+      attendanceStatus == AttendanceStatus.late;
 
   static ConfirmationStatus _parseConfirmation(String s) {
     return switch (s) {
@@ -63,6 +74,25 @@ class Presenca {
       ConfirmationStatus.confirmed => 'confirmed',
       ConfirmationStatus.declined => 'declined',
       ConfirmationStatus.noResponse => 'no_response',
+    };
+  }
+
+  static AttendanceStatus _parseAttendance(String s) {
+    return switch (s) {
+      'pending' => AttendanceStatus.pending,
+      'attended' => AttendanceStatus.attended,
+      'absent' => AttendanceStatus.absent,
+      'late' => AttendanceStatus.late,
+      _ => AttendanceStatus.pending,
+    };
+  }
+
+  static String attendanceToString(AttendanceStatus s) {
+    return switch (s) {
+      AttendanceStatus.pending => 'pending',
+      AttendanceStatus.attended => 'attended',
+      AttendanceStatus.absent => 'absent',
+      AttendanceStatus.late => 'late',
     };
   }
 }

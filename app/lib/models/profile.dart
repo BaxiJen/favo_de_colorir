@@ -9,6 +9,8 @@ class Profile {
   final String? phone;
   final DateTime? birthDate;
   final String? avatarUrl;
+  final String? bio;
+  final String? rejectionReason;
   final UserRole role;
   final UserStatus status;
   final Map<String, dynamic>? notificationPreferences;
@@ -22,6 +24,8 @@ class Profile {
     this.phone,
     this.birthDate,
     this.avatarUrl,
+    this.bio,
+    this.rejectionReason,
     required this.role,
     required this.status,
     this.notificationPreferences,
@@ -39,6 +43,8 @@ class Profile {
           ? DateTime.parse(json['birth_date'] as String)
           : null,
       avatarUrl: json['avatar_url'] as String?,
+      bio: json['bio'] as String?,
+      rejectionReason: json['rejection_reason'] as String?,
       role: UserRole.values.byName(json['role'] as String),
       status: UserStatus.values.byName(json['status'] as String),
       notificationPreferences:
@@ -56,14 +62,48 @@ class Profile {
       'phone': phone,
       'birth_date': birthDate?.toIso8601String().split('T').first,
       'avatar_url': avatarUrl,
+      'bio': bio,
+      'rejection_reason': rejectionReason,
       'role': role.name,
       'status': status.name,
       'notification_preferences': notificationPreferences,
     };
   }
 
+  Profile copyWith({
+    String? fullName,
+    String? phone,
+    DateTime? birthDate,
+    String? avatarUrl,
+    String? bio,
+    Map<String, dynamic>? notificationPreferences,
+  }) {
+    return Profile(
+      id: id,
+      fullName: fullName ?? this.fullName,
+      email: email,
+      phone: phone ?? this.phone,
+      birthDate: birthDate ?? this.birthDate,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      bio: bio ?? this.bio,
+      rejectionReason: rejectionReason,
+      role: role,
+      status: status,
+      notificationPreferences:
+          notificationPreferences ?? this.notificationPreferences,
+      createdAt: createdAt,
+      updatedAt: DateTime.now(),
+    );
+  }
+
   bool get isAdmin => role == UserRole.admin;
   bool get isTeacher => role == UserRole.teacher;
   bool get isStudent => role == UserRole.student;
   bool get isActive => status == UserStatus.active;
+  bool get pushEnabled =>
+      (notificationPreferences?['push'] as bool?) ?? true;
+  bool get emailEnabled =>
+      (notificationPreferences?['email'] as bool?) ?? true;
+  bool get communityNotifications =>
+      (notificationPreferences?['community'] as bool?) ?? true;
 }

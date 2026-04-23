@@ -13,6 +13,9 @@ class Cobranca {
   final CobrancaStatus status;
   final PaymentMethod? paymentMethod;
   final String? paymentReference;
+  final String? comprovanteUrl;
+  final DateTime? comprovanteUploadedAt;
+  final String? paymentNotes;
   final DateTime? paidAt;
   final DateTime? notifiedAt;
   final bool adminConfirmed;
@@ -29,6 +32,9 @@ class Cobranca {
     required this.status,
     this.paymentMethod,
     this.paymentReference,
+    this.comprovanteUrl,
+    this.comprovanteUploadedAt,
+    this.paymentNotes,
     this.paidAt,
     this.notifiedAt,
     required this.adminConfirmed,
@@ -49,6 +55,11 @@ class Cobranca {
           ? PaymentMethod.values.byName(json['payment_method'] as String)
           : null,
       paymentReference: json['payment_reference'] as String?,
+      comprovanteUrl: json['comprovante_url'] as String?,
+      comprovanteUploadedAt: json['comprovante_uploaded_at'] != null
+          ? DateTime.parse(json['comprovante_uploaded_at'] as String)
+          : null,
+      paymentNotes: json['payment_notes'] as String?,
       paidAt: json['paid_at'] != null
           ? DateTime.parse(json['paid_at'] as String)
           : null,
@@ -63,6 +74,7 @@ class Cobranca {
   bool get isPaid => status == CobrancaStatus.paid;
   bool get isPending =>
       status == CobrancaStatus.pending || status == CobrancaStatus.notified;
+  bool get hasComprovante => comprovanteUrl != null;
 }
 
 class CobrancaItem {
