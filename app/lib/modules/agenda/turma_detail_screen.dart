@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../../core/widgets/user_avatar.dart';
 import '../../models/profile.dart';
 import '../../services/agenda_service.dart';
 import '../../services/profile_service.dart';
@@ -118,26 +119,10 @@ class _TurmaDetailScreenState extends ConsumerState<TurmaDetailScreen> {
                         ),
                         child: Row(
                           children: [
-                            CircleAvatar(
+                            UserAvatar(
+                              avatarUrl: profile['avatar_url'] as String?,
+                              name: name,
                               radius: 20,
-                              backgroundColor:
-                                  FavoColors.primaryContainer.withAlpha(30),
-                              backgroundImage:
-                                  profile['avatar_url'] != null
-                                      ? NetworkImage(
-                                          profile['avatar_url'] as String)
-                                      : null,
-                              child: profile['avatar_url'] == null
-                                  ? Text(
-                                      name.isNotEmpty
-                                          ? name[0].toUpperCase()
-                                          : '?',
-                                      style: const TextStyle(
-                                        color: FavoColors.primary,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    )
-                                  : null,
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -208,15 +193,10 @@ class _TurmaDetailScreenState extends ConsumerState<TurmaDetailScreen> {
             itemBuilder: (ctx, i) {
               final p = available[i];
               return ListTile(
-                leading: CircleAvatar(
+                leading: UserAvatar(
+                  avatarUrl: p.avatarUrl,
+                  name: p.fullName,
                   radius: 18,
-                  backgroundColor:
-                      FavoColors.primaryContainer.withAlpha(30),
-                  child: Text(
-                    p.fullName.isNotEmpty ? p.fullName[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                        color: FavoColors.primary, fontWeight: FontWeight.bold),
-                  ),
                 ),
                 title: Text(p.fullName),
                 subtitle: Text(p.email),

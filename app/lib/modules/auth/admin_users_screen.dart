@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/error_handler.dart';
 import '../../core/theme.dart';
+import '../../core/widgets/user_avatar.dart';
 import '../../models/profile.dart';
 import '../../services/profile_service.dart';
 
@@ -153,22 +154,12 @@ class _UserCard extends ConsumerWidget {
       ),
       child: ExpansionTile(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading: CircleAvatar(
+        leading: UserAvatar(
+          avatarUrl: profile.avatarUrl,
+          name: profile.fullName,
           radius: 20,
           backgroundColor: _roleColor(profile.role).withAlpha(30),
-          backgroundImage: profile.avatarUrl != null
-              ? NetworkImage(profile.avatarUrl!)
-              : null,
-          child: profile.avatarUrl == null
-              ? Text(
-                  profile.fullName.isNotEmpty
-                      ? profile.fullName[0].toUpperCase()
-                      : '?',
-                  style: TextStyle(
-                      color: _roleColor(profile.role),
-                      fontWeight: FontWeight.bold),
-                )
-              : null,
+          foregroundColor: _roleColor(profile.role),
         ),
         title:
             Text(profile.fullName, style: Theme.of(context).textTheme.titleSmall),

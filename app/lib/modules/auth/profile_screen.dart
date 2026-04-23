@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/error_handler.dart';
 import '../../core/theme.dart';
+import '../../core/widgets/user_avatar.dart';
 import '../../models/profile.dart';
 import '../../services/auth_service.dart';
 import '../../services/profile_service.dart';
@@ -69,24 +70,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             onTap: () => _pickAvatar(profile),
             child: Stack(
               children: [
-                CircleAvatar(
+                UserAvatar(
+                  avatarUrl: profile.avatarUrl,
+                  name: profile.fullName,
                   radius: 48,
-                  backgroundColor: FavoColors.primaryContainer,
-                  backgroundImage: profile.avatarUrl != null
-                      ? NetworkImage(profile.avatarUrl!)
-                      : null,
-                  child: profile.avatarUrl == null
-                      ? Text(
-                          profile.fullName.isNotEmpty
-                              ? profile.fullName[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            fontSize: 36,
-                            color: FavoColors.onPrimary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        )
-                      : null,
                 ),
                 Positioned(
                   bottom: 0,

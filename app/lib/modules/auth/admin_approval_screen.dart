@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/error_handler.dart';
 import '../../core/theme.dart';
+import '../../core/widgets/user_avatar.dart';
 import '../../models/profile.dart';
 import '../../services/profile_service.dart';
 
@@ -68,16 +69,10 @@ class _PendingCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              CircleAvatar(
+              UserAvatar(
+                avatarUrl: profile.avatarUrl,
+                name: profile.fullName,
                 radius: 22,
-                backgroundColor: FavoColors.primaryContainer.withAlpha(40),
-                child: Text(
-                  profile.fullName.isNotEmpty
-                      ? profile.fullName[0].toUpperCase()
-                      : '?',
-                  style: const TextStyle(
-                      color: FavoColors.primary, fontWeight: FontWeight.bold),
-                ),
               ),
               const SizedBox(width: 14),
               Expanded(
