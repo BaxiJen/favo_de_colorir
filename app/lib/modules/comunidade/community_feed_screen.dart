@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/supabase_client.dart';
+import '../../core/error_handler.dart';
 import '../../core/theme.dart';
 import '../../services/community_service.dart';
 
@@ -142,33 +142,66 @@ class CommunityFeedScreen extends ConsumerWidget {
     if (result != true) return;
     if (ctrl.text.trim().isEmpty && selectedImage == null) return;
 
+    // Indicador "moderando..."
+    if (!context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(
+      duration: Duration(seconds: 30),
+      content: Row(children: [
+        SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: Colors.white)),
+        SizedBox(width: 12),
+        Text('Publicando e moderando...'),
+      ]),
+    ));
+
     try {
-      // Upload image to storage if selected
       List<String>? imageUrls;
       if (selectedImage != null) {
-        final userId = SupabaseConfig.auth.currentUser!.id;
-        final ext = selectedImage!.path.split('.').last;
-        final path = 'community/$userId/${DateTime.now().millisecondsSinceEpoch}.$ext';
-
-        await SupabaseConfig.storage
-            .from('feed')
-            .upload(path, File(selectedImage!.path));
-
-        final url = SupabaseConfig.storage.from('feed').getPublicUrl(path);
+        final bytes = kIsWeb ? await selectedImage!.readAsBytes() : null;
+        final url = await ref.read(communityServiceProvider).uploadPostPhoto(
+              filename: selectedImage!.name,
+              bytes: bytes,
+              file: kIsWeb ? null : File(selectedImage!.path),
+            );
         imageUrls = [url];
       }
 
-      await ref.read(communityServiceProvider).createPost(
-        ctrl.text.trim().isNotEmpty ? ctrl.text.trim() : 'Foto',
-        imageUrls: imageUrls,
-      );
+      final result = await ref.read(communityServiceProvider).createPost(
+            ctrl.text.trim().isNotEmpty ? ctrl.text.trim() : 'Foto',
+            imageUrls: imageUrls,
+          );
       ref.invalidate(communityFeedProvider);
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')),
+
+      messenger.hideCurrentSnackBar();
+      if (!context.mounted) return;
+
+      if (!result.approved) {
+        await showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Publicação não aprovada'),
+            content: Text(result.reason ??
+                'Sua publicação não passou pela moderação. Revise e tente de novo.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Publicação no ar!')),
         );
       }
+    } catch (e) {
+      messenger.hideCurrentSnackBar();
+      if (context.mounted) showErrorSnackBar(context, e);
     }
   }
 }
@@ -239,8 +272,63 @@ class _PostCard extends ConsumerWidget {
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.network(post.imageUrls.first,
-                  height: 200, width: double.infinity, fit: BoxFit.cover),
+              child: Image.network(
+                post.imageUrls.first,
+                height: 200,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                loadingBuilder: (ctx, child, progress) {
+                  if (progress == null) return child;
+                  return Container(
+                    height: 200,
+                    color: FavoColors.surfaceContainerLow,
+                    child: const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2)),
+                  );
+                },
+                errorBuilder: (_, _, _) => Container(
+                  height: 200,
+                  color: FavoColors.surfaceContainerLow,
+                  child: const Center(
+                    child: Icon(Icons.broken_image_outlined,
+                        color: FavoColors.outline, size: 36),
+                  ),
+                ),
+              ),
+            ),
+          ],
+
+          if (post.moderationStatus == ModerationStatus.pending) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: FavoColors.primaryContainer.withAlpha(40),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Aguardando moderação',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: FavoColors.primary,
+                    ),
+              ),
+            ),
+          ] else if (post.moderationStatus == ModerationStatus.rejected) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: FavoColors.error.withAlpha(30),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Publicação rejeitada pela moderação',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: FavoColors.error,
+                    ),
+              ),
             ),
           ],
 
@@ -295,112 +383,255 @@ class _PostCard extends ConsumerWidget {
 
   Future<void> _showComments(
       BuildContext context, WidgetRef ref, String postId) async {
-    final commentCtrl = TextEditingController();
-
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.6,
-        builder: (ctx, scrollCtrl) => Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text('Comentários',
-                  style: Theme.of(context).textTheme.titleMedium),
+      builder: (ctx) => _CommentsSheet(postId: postId),
+    );
+  }
+}
+
+class _CommentsSheet extends ConsumerStatefulWidget {
+  final String postId;
+  const _CommentsSheet({required this.postId});
+
+  @override
+  ConsumerState<_CommentsSheet> createState() => _CommentsSheetState();
+}
+
+class _CommentsSheetState extends ConsumerState<_CommentsSheet> {
+  final _ctrl = TextEditingController();
+  XFile? _attached;
+  bool _sending = false;
+  Future<List<CommunityComment>>? _commentsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    _commentsFuture =
+        ref.read(communityServiceProvider).getComments(widget.postId);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pick() async {
+    final picker = ImagePicker();
+    final img = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1200,
+      imageQuality: 82,
+    );
+    if (img != null) setState(() => _attached = img);
+  }
+
+  Future<void> _send() async {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty && _attached == null) return;
+    setState(() => _sending = true);
+    try {
+      String? imageUrl;
+      if (_attached != null) {
+        final bytes = kIsWeb ? await _attached!.readAsBytes() : null;
+        imageUrl = await ref.read(communityServiceProvider).uploadCommentPhoto(
+              filename: _attached!.name,
+              bytes: bytes,
+              file: kIsWeb ? null : File(_attached!.path),
+            );
+      }
+      await ref.read(communityServiceProvider).addComment(
+            widget.postId,
+            text.isEmpty ? '📷' : text,
+            imageUrl: imageUrl,
+          );
+      _ctrl.clear();
+      if (mounted) {
+        setState(() {
+          _attached = null;
+          _reload();
+        });
+        ref.invalidate(communityFeedProvider);
+      }
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, e);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.7,
+      builder: (ctx, scrollCtrl) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('Comentários',
+                style: Theme.of(context).textTheme.titleMedium),
+          ),
+          Expanded(
+            child: FutureBuilder<List<CommunityComment>>(
+              future: _commentsFuture,
+              builder: (ctx, snap) {
+                if (!snap.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final comments = snap.data!;
+                if (comments.isEmpty) {
+                  return const Center(
+                      child: Text('Seja a primeira a comentar'));
+                }
+                return ListView.builder(
+                  controller: scrollCtrl,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: comments.length,
+                  itemBuilder: (ctx, i) => _CommentTile(c: comments[i]),
+                );
+              },
             ),
-            Expanded(
-              child: FutureBuilder<List<CommunityComment>>(
-                future: ref.read(communityServiceProvider).getComments(postId),
-                builder: (ctx, snap) {
-                  if (!snap.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  final comments = snap.data!;
-                  if (comments.isEmpty) {
-                    return const Center(child: Text('Sem comentários'));
-                  }
-                  return ListView.builder(
-                    controller: scrollCtrl,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: comments.length,
-                    itemBuilder: (ctx, i) {
-                      final c = comments[i];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CircleAvatar(
-                              radius: 14,
-                              backgroundColor:
-                                  FavoColors.surfaceContainerHigh,
-                              child: Text(
-                                c.authorName.isNotEmpty
-                                    ? c.authorName[0]
-                                    : '?',
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(c.authorName,
-                                      style: Theme.of(ctx)
-                                          .textTheme
-                                          .labelMedium),
-                                  Text(c.content,
-                                      style: Theme.of(ctx)
-                                          .textTheme
-                                          .bodyMedium),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
+          ),
+          if (_attached != null)
             Padding(
-              padding: EdgeInsets.fromLTRB(
-                  16, 8, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Row(
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: commentCtrl,
-                      decoration: const InputDecoration(
-                        hintText: 'Escreva um comentário...',
-                      ),
-                    ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: kIsWeb
+                        ? FutureBuilder<Uint8List>(
+                            future: _attached!.readAsBytes(),
+                            builder: (_, snap) {
+                              if (!snap.hasData) {
+                                return const SizedBox(width: 60, height: 60);
+                              }
+                              return Image.memory(snap.data!,
+                                  width: 60, height: 60, fit: BoxFit.cover);
+                            },
+                          )
+                        : Image.file(File(_attached!.path),
+                            width: 60, height: 60, fit: BoxFit.cover),
                   ),
-                  const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.send, color: FavoColors.primary),
-                    onPressed: () async {
-                      if (commentCtrl.text.trim().isEmpty) return;
-                      await ref
-                          .read(communityServiceProvider)
-                          .addComment(postId, commentCtrl.text.trim());
-                      commentCtrl.clear();
-                      ref.invalidate(communityFeedProvider);
-                      if (ctx.mounted) Navigator.pop(ctx);
-                    },
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: () => setState(() => _attached = null),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+                16, 0, 16, MediaQuery.of(context).viewInsets.bottom + 16),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.photo_outlined,
+                      color: FavoColors.onSurfaceVariant),
+                  onPressed: _sending ? null : _pick,
+                  tooltip: 'Anexar foto',
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: _ctrl,
+                    minLines: 1,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      hintText: 'Escreva um comentário...',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: _sending
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.send, color: FavoColors.primary),
+                  onPressed: _sending ? null : _send,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommentTile extends StatelessWidget {
+  final CommunityComment c;
+  const _CommentTile({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: FavoColors.primaryContainer.withAlpha(40),
+            backgroundImage: c.authorAvatar != null
+                ? NetworkImage(c.authorAvatar!)
+                : null,
+            child: c.authorAvatar == null
+                ? Text(
+                    c.authorName.isNotEmpty
+                        ? c.authorName[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: FavoColors.primary,
+                        fontWeight: FontWeight.bold),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(c.authorName,
+                    style: Theme.of(context).textTheme.labelMedium),
+                if (c.content.isNotEmpty)
+                  Text(c.content,
+                      style: Theme.of(context).textTheme.bodyMedium),
+                if (c.imageUrl != null) ...[
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      c.imageUrl!,
+                      width: 180,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Container(
+                        width: 180,
+                        height: 120,
+                        color: FavoColors.surfaceContainerLow,
+                        child: const Icon(Icons.broken_image_outlined,
+                            color: FavoColors.outline),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
