@@ -150,63 +150,109 @@ class WaitlistScreen extends ConsumerWidget {
   }
 }
 
-class _MyFilaTile extends StatelessWidget {
+class _MyFilaTile extends ConsumerWidget {
   final Map<String, dynamic> entry;
   final VoidCallback onLeave;
 
   const _MyFilaTile({required this.entry, required this.onLeave});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final turma = entry['turmas'] as Map<String, dynamic>?;
     final status = entry['status'] as String;
     final position = entry['position'] as int;
+    final canAccept = status == 'notified';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: FavoColors.surfaceContainerLowest,
+        color: canAccept
+            ? FavoColors.success.withAlpha(25)
+            : FavoColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(14),
+        border: canAccept
+            ? Border.all(color: FavoColors.success, width: 1.5)
+            : null,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: FavoColors.primaryContainer.withAlpha(40),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: Text('#$position',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: FavoColors.primary,
-                      fontWeight: FontWeight.w700,
-                    )),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(turma?['name'] as String? ?? 'Turma',
-                    style: Theme.of(context).textTheme.titleSmall),
-                Text(
-                  status == 'notified'
-                      ? '🎉 Vaga disponível — toque em aceitar na próxima tela'
-                      : 'Aguardando abrir vaga',
-                  style: Theme.of(context).textTheme.bodySmall,
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: FavoColors.primaryContainer.withAlpha(40),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ],
+                alignment: Alignment.center,
+                child: Text('#$position',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: FavoColors.primary,
+                          fontWeight: FontWeight.w700,
+                        )),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(turma?['name'] as String? ?? 'Turma',
+                        style: Theme.of(context).textTheme.titleSmall),
+                    Text(
+                      canAccept
+                          ? 'Vaga disponível — pode aceitar agora!'
+                          : 'Aguardando abrir vaga',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: canAccept ? FavoColors.success : null,
+                            fontWeight:
+                                canAccept ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.exit_to_app, size: 20),
+                color: FavoColors.error,
+                tooltip: 'Sair da fila',
+                onPressed: onLeave,
+              ),
+            ],
+          ),
+          if (canAccept) ...[
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final userId = SupabaseConfig.auth.currentUser?.id;
+                if (userId == null) return;
+                try {
+                  await ref.read(repositionServiceProvider).acceptWaitlistSpot(
+                        entry['id'] as String,
+                        entry['turma_id'] as String,
+                        userId,
+                      );
+                  ref.invalidate(_myWaitlistProvider);
+                  ref.invalidate(_fullTurmasProvider);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text(
+                              'Pronto! Você tá matriculada na turma. Bem-vinda.')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) showErrorSnackBar(context, e);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: FavoColors.success),
+              icon: const Icon(Icons.check, size: 18),
+              label: const Text('Aceitar vaga'),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.exit_to_app, size: 20),
-            color: FavoColors.error,
-            tooltip: 'Sair da fila',
-            onPressed: onLeave,
-          ),
+          ],
         ],
       ),
     );

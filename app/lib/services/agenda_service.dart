@@ -543,6 +543,37 @@ class AgendaService {
     }
   }
 
+  /// Cria crédito de reposição manual pra aluna que faltou (usado pela
+  /// professora quando aluna avisou fora do app). Returns o ID.
+  Future<String> createRepositionCredit({
+    required String studentId,
+    required String originalAulaId,
+  }) async {
+    final monthYear = DateFormat('yyyy-MM').format(DateTime.now());
+    final inserted = await _client.from('reposicoes').insert({
+      'student_id': studentId,
+      'original_aula_id': originalAulaId,
+      'month_year': monthYear,
+      'status': 'pending',
+      'admin_override': true,
+    }).select('id').single();
+
+    try {
+      await _client.from('audit_logs').insert({
+        'actor_id': SupabaseConfig.auth.currentUser?.id,
+        'action': 'create_reposition_credit',
+        'resource_type': 'reposicoes',
+        'resource_id': inserted['id'],
+        'changes': {
+          'student_id': studentId,
+          'original_aula_id': originalAulaId,
+        },
+      });
+    } catch (_) {}
+
+    return inserted['id'] as String;
+  }
+
   /// Bulk: marca todas as presenças de uma aula como ausentes
   /// (atalho: "todos faltaram" = feriado não previsto).
   Future<void> markAllAbsent(String aulaId) async {

@@ -217,8 +217,21 @@ Future<void> _markAllAbsent(
     context: context,
     builder: (ctx) => AlertDialog(
       title: const Text('Todos faltaram?'),
-      content: const Text(
-          'Marca TODAS as pessoas dessa aula como falta. Use quando a aula não aconteceu (ex: imprevisto, imprevisto de última hora). Se foi feriado planejado, prefira "Cancelar aula" no detalhe da aula pra criar crédito automático.'),
+      content: const Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+              'Marca TODAS as pessoas dessa aula como falta. Use quando a aula aconteceu mas ninguém veio.'),
+          SizedBox(height: 12),
+          Text('Quando usar o quê:',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          SizedBox(height: 6),
+          Text('• Ninguém apareceu → "Todos faltaram" (sem crédito).'),
+          SizedBox(height: 4),
+          Text('• Você cancelou (feriado, imprevisto) → abra o detalhe da aula e toque "Cancelar aula" (aluna com presença confirmada ganha crédito de reposição automático).'),
+        ],
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx, false),
@@ -283,6 +296,45 @@ class _AttendanceRowState extends ConsumerState<_AttendanceRow> {
           );
       if (mounted) {
         ref.invalidate(turmaAulasDoDiaProvider);
+      }
+      // Ao marcar falta, oferecer crédito de reposição (só se ainda não
+      // é reposição — não criar crédito pra quem já veio fazer reposição).
+      if (newStatus == AttendanceStatus.absent &&
+          !widget.presenca.isMakeup &&
+          mounted) {
+        final give = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Dar crédito de reposição?'),
+            content: Text(
+                '${widget.studentName} faltou. Deseja gerar um crédito pra ela repor essa aula em outra turma com vaga?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Sem crédito'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Dar crédito'),
+              ),
+            ],
+          ),
+        );
+        if (give == true && mounted) {
+          try {
+            await ref.read(agendaServiceProvider).createRepositionCredit(
+                  studentId: widget.presenca.studentId,
+                  originalAulaId: widget.aulaId,
+                );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Crédito de reposição criado.')),
+              );
+            }
+          } catch (e) {
+            if (mounted) showErrorSnackBar(context, e);
+          }
+        }
       }
     } catch (e) {
       if (mounted) {

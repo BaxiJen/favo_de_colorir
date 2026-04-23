@@ -180,6 +180,29 @@ class _AdminNotificationsScreenState
       return;
     }
 
+    // Confirm pra broadcasts amplos
+    if (_target == _Target.all) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Enviar pra todas as pessoas ativas?'),
+          content: const Text(
+              'Esse recado vai pra TODO MUNDO ativo no app (alunas, professoras, assistentes e admins). Tem certeza?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Enviar pra todos'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+
     setState(() => _isLoading = true);
 
     try {

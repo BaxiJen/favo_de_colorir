@@ -129,7 +129,29 @@ class _PriceRow extends StatelessWidget {
                   ],
                 ),
               );
-              if (result != null) await onSave(result);
+              if (result == null) return;
+              // Confirm dialog pra evitar typo (ex: 8.50 → 85.00)
+              final diff = ((result - price) / price * 100).abs();
+              if (diff > 30 && context.mounted) {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Mudança grande de preço'),
+                    content: Text(
+                        '$label vai de R\$ ${price.toStringAsFixed(2)} para R\$ ${result.toStringAsFixed(2)} (${diff.toStringAsFixed(0)}% de diferença). Confirmar?'),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancelar')),
+                      ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Confirmar')),
+                    ],
+                  ),
+                );
+                if (ok != true) return;
+              }
+              await onSave(result);
             },
           ),
         ],
